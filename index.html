@@ -9,9 +9,12 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
   <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-md flex flex-col">
-    <!-- 頂部標題列（已移除英文） -->
-    <header class="bg-indigo-600 text-white p-4 shadow">
-      <h1 class="text-xl font-bold text-center">羽球報名系統</h1>
+    <!-- 頂部標題列 -->
+    <header class="bg-indigo-600 text-white p-4 shadow flex justify-between items-center">
+      <h1 class="text-xl font-bold text-center flex-1">羽球報名系統</h1>
+      <span class="text-xs bg-indigo-800 px-2 py-1 rounded" :class="isOnline ? 'text-emerald-300' : 'text-rose-300'">
+        {{ isOnline ? '🟢 雲端同步中' : '🔴 連線中...' }}
+      </span>
     </header>
 
     <!-- 分頁切換選單 -->
@@ -124,7 +127,7 @@
               正取名單 ({{ regularList.length }})
             </h3>
             <div class="bg-white border rounded-lg divide-y text-sm">
-              <div v-for="(item, index) in regularList" :key="index" class="p-3 flex justify-between items-center">
+              <div v-for="(item, index) in regularList" :key="item.id" class="p-3 flex justify-between items-center">
                 <div>
                   <span class="font-medium mr-2 text-base">{{ item.name }}</span>
                   <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
@@ -142,7 +145,7 @@
               候補名單 ({{ waitlist.length }})
             </h3>
             <div class="bg-white border rounded-lg divide-y text-sm">
-              <div v-for="(item, index) in waitlist" :key="index" class="p-3 flex justify-between items-center">
+              <div v-for="(item, index) in waitlist" :key="item.id" class="p-3 flex justify-between items-center">
                 <div>
                   <span class="font-medium mr-2 text-base">{{ item.name }}</span>
                   <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
@@ -171,7 +174,7 @@
             class="w-full px-3 py-2 border rounded-md text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           ></textarea>
           <button @click="importBatchData" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
-            解析並批量匯入
+            解析並批量匯入雲端
           </button>
         </div>
 
@@ -202,11 +205,11 @@
           </div>
 
           <button @click="addSinglePlayer" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
-            新增至資料庫
+            新增至雲端資料庫
           </button>
         </div>
 
-        <!-- 資料庫清單（採用下拉式卡片展開修改） -->
+        <!-- 資料庫清單 -->
         <div>
           <div class="flex justify-between items-center mb-2">
             <div>
@@ -219,10 +222,9 @@
           <div class="space-y-2">
             <div 
               v-for="(player, idx) in playerDb" 
-              :key="idx" 
+              :key="player.id" 
               class="bg-white border rounded-lg overflow-hidden shadow-sm transition-all"
             >
-              <!-- 顯示主要欄位資訊 -->
               <div 
                 @click="toggleExpand(idx)"
                 class="p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none"
@@ -241,7 +243,6 @@
                   >
                     {{ player.level }}
                   </span>
-                  <!-- 報名次數計數器 -->
                   <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold border border-amber-200">
                     已報名 {{ player.count || 0 }} 次
                   </span>
@@ -250,7 +251,7 @@
                   <span class="text-xs text-indigo-600 font-medium">
                     {{ activeEditIndex === idx ? '▲ 收合' : '▼ 編輯' }}
                   </span>
-                  <button @click.stop="removeFromDb(idx)" class="text-xs text-rose-500 hover:text-rose-700 font-medium ml-2">刪除</button>
+                  <button @click.stop="removeFromDb(player.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium ml-2">刪除</button>
                 </div>
               </div>
 
@@ -283,14 +284,14 @@
                   </div>
                 </div>
                 <div class="pt-1 flex justify-end">
-                  <button @click="activeEditIndex = null" class="bg-indigo-600 text-white text-xs px-4 py-1.5 rounded-md font-bold hover:bg-indigo-700">
-                    完成修改
+                  <button @click="updatePlayerInDb(player)" class="bg-indigo-600 text-white text-xs px-4 py-1.5 rounded-md font-bold hover:bg-indigo-700">
+                    儲存更新
                   </button>
                 </div>
               </div>
             </div>
 
-            <p v-if="playerDb.length === 0" class="p-3 text-xs text-slate-400 text-center bg-white border rounded-lg">資料庫為空，請新增或匯入資料</p>
+            <p v-if="playerDb.length === 0" class="p-3 text-xs text-slate-400 text-center bg-white border rounded-lg">雲端資料庫為空</p>
           </div>
         </div>
       </section>
@@ -300,7 +301,6 @@
         <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-4 shadow-sm">
           <h3 class="font-bold text-slate-700 text-base border-b pb-2">活動開團設定</h3>
 
-          <!-- 快速開新團按鈕 -->
           <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-lg flex items-center justify-between">
             <div>
               <p class="font-bold text-sm text-indigo-950">準備開新團嗎？</p>
@@ -311,7 +311,6 @@
             </button>
           </div>
 
-          <!-- 日期與時間選擇器 -->
           <div class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">羽球日期 *</label>
@@ -329,19 +328,14 @@
             </div>
           </div>
 
-          <!-- 地點輸入 -->
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">羽球地點</label>
             <input 
               v-model="settings.location" 
               type="text" 
-              list="location-history"
               placeholder="選擇或輸入地點" 
               class="w-full px-3 py-2 border rounded-md text-sm"
             >
-            <datalist id="location-history">
-              <option v-for="(loc, idx) in historyLocations" :key="idx" :value="loc"></option>
-            </datalist>
           </div>
 
           <div class="grid grid-cols-3 gap-2">
@@ -360,7 +354,7 @@
           </div>
 
           <button @click="saveSettings" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
-            儲存開團設定
+            儲存開團設定至雲端
           </button>
 
           <div class="pt-2 border-t">
@@ -374,21 +368,37 @@
     </main>
   </div>
 
-  <script>
-    const { createApp, ref, computed, watch, onMounted } = Vue;
+  <!-- Firebase 模組載入與系統邏輯 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 您控制台複製的 Firebase 設定檔
+    const firebaseConfig = {
+      apiKey: "AIzaSyBM21rSIlwVxoh-03hp6AQStiAKKTTnOhE",
+      authDomain: "badminton-sign-up-b10b5.firebaseapp.com",
+      projectId: "badminton-sign-up-b10b5",
+      storageBucket: "badminton-sign-up-b10b5.firebasestorage.app",
+      messagingSenderId: "735341515743",
+      appId: "1:735341515743:web:9ac2ce25d47d5fbf06ea6a",
+      measurementId: "G-2586P1RQNP"
+    };
+
+    // 初始化 Firebase 與 Firestore
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const { createApp, ref, computed, onMounted } = Vue;
 
     createApp({
       setup() {
         const currentTab = ref('home');
-
-        // 羽球等級選單 (1級 ~ 15級)
+        const isOnline = ref(false);
         const levelOptions = Array.from({ length: 15 }, (_, i) => `${i + 1}級`);
 
-        // 團主地點歷史紀錄
-        const historyLocations = ref(['新北市羽球館', '市立體育館 3樓', '國民運動中心']);
-
-        // 團主設定 (預設值)
-        const defaultSettings = {
+        const settings = ref({
           date: new Date().toISOString().split('T')[0],
           startTime: '14:00',
           endTime: '16:00',
@@ -396,83 +406,59 @@
           courts: 2,
           maxRegular: 12,
           maxWaitlist: 4
-        };
-        const settings = ref({ ...defaultSettings });
+        });
 
-        // 報名表單 state
         const form = ref({ name: '', gender: '', level: '' });
         const autoMatched = ref(null);
 
-        // 球員資料庫
         const playerDb = ref([]);
-        // 單筆新增表單 state
         const newPlayer = ref({ name: '', gender: '無資料', level: '無資料' });
-        // 下拉展開控制 Index
         const activeEditIndex = ref(null);
-
-        // 批量輸入文字框
         const batchText = ref('');
 
-        // 報名清單
         const registrations = ref([]);
 
         // -------------------------------------------------------------
-        // localStorage 資料持久化
+        // Firebase 即時雲端同步 (onSnapshot)
         // -------------------------------------------------------------
-        const loadLocalData = () => {
-          const savedDb = localStorage.getItem('badminton_player_db');
-          if (savedDb) {
-            try { 
-              const parsed = JSON.parse(savedDb);
-              // 補齊舊資料缺少 count 的邏輯
-              playerDb.value = parsed.map(p => ({ ...p, count: p.count || 0 }));
-            } catch(e){}
-          }
-
-          const savedSettings = localStorage.getItem('badminton_settings');
-          if (savedSettings) {
-            try { settings.value = { ...defaultSettings, ...JSON.parse(savedSettings) }; } catch(e){}
-          }
-
-          const savedLocations = localStorage.getItem('badminton_locations');
-          if (savedLocations) {
-            try { historyLocations.value = JSON.parse(savedLocations); } catch(e){}
-          }
-
-          const savedRegs = localStorage.getItem('badminton_registrations');
-          if (savedRegs) {
-            try { registrations.value = JSON.parse(savedRegs); } catch(e){}
-          }
-        };
-
-        watch(playerDb, (newVal) => {
-          localStorage.setItem('badminton_player_db', JSON.stringify(newVal));
-        }, { deep: true });
-
-        watch(settings, (newVal) => {
-          localStorage.setItem('badminton_settings', JSON.stringify(newVal));
-        }, { deep: true });
-
-        watch(historyLocations, (newVal) => {
-          localStorage.setItem('badminton_locations', JSON.stringify(newVal));
-        }, { deep: true });
-
-        watch(registrations, (newVal) => {
-          localStorage.setItem('badminton_registrations', JSON.stringify(newVal));
-        }, { deep: true });
-
         onMounted(() => {
-          loadLocalData();
-        });
-        // -------------------------------------------------------------
+          // 1. 即時監聽團主設定 (Document: app_config/settings)
+          onSnapshot(doc(db, 'app_config', 'settings'), (docSnap) => {
+            if (docSnap.exists()) {
+              settings.value = docSnap.data();
+            }
+            isOnline.value = true;
+          });
 
-        // 格式化顯示時間
+          // 2. 即時監聽球員資料庫 (Collection: player_db)
+          onSnapshot(collection(db, 'player_db'), (snapshot) => {
+            const players = [];
+            snapshot.forEach((doc) => {
+              players.push({ id: doc.id, ...doc.data() });
+            });
+            playerDb.value = players;
+          });
+
+          // 3. 即時監聽報名名單 (Collection: registrations)
+          onSnapshot(collection(db, 'registrations'), (snapshot) => {
+            const regs = [];
+            snapshot.forEach((doc) => {
+              regs.push({ id: doc.id, ...doc.data() });
+            });
+            // 依據時間順序排序
+            regs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            registrations.value = regs;
+          });
+        });
+
+        // -------------------------------------------------------------
+        // 計算屬性
+        // -------------------------------------------------------------
         const formattedActivityTime = computed(() => {
           if (!settings.value.date) return '未定';
           return `${settings.value.date} ${settings.value.startTime} - ${settings.value.endTime}`;
         });
 
-        // 輸入姓名時自動帶入資料庫資料
         const onNameInput = () => {
           if (!form.value.name) {
             autoMatched.value = null;
@@ -488,7 +474,6 @@
           }
         };
 
-        // 計算正取與候補名單
         const regularList = computed(() => registrations.value.slice(0, settings.value.maxRegular));
         const waitlist = computed(() => registrations.value.slice(settings.value.maxRegular, settings.value.maxRegular + settings.value.maxWaitlist));
         
@@ -496,8 +481,10 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 送出報名（包含自動累計報名次數功能）
-        const submitRegistration = () => {
+        // -------------------------------------------------------------
+        // 報名與雲端互動動作
+        // -------------------------------------------------------------
+        const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
             return;
@@ -508,166 +495,165 @@
             return;
           }
 
-          // 尋找資料庫並累計報名次數 (count + 1)
+          const regId = 'reg_' + Date.now();
           const dbIndex = playerDb.value.findIndex(p => p.name === form.value.name);
-          if (dbIndex === -1) {
-            playerDb.value.push({ ...form.value, count: 1 });
-          } else {
-            const current = playerDb.value[dbIndex];
-            playerDb.value[dbIndex] = {
-              ...current,
-              gender: current.gender === '無資料' ? form.value.gender : current.gender,
-              level: current.level === '無資料' ? form.value.level : current.level,
-              count: (current.count || 0) + 1
-            };
-          }
 
-          registrations.value.push({
-            id: Date.now(),
-            ...form.value
+          // 寫入報名紀錄到雲端
+          await setDoc(doc(db, 'registrations', regId), {
+            name: form.value.name,
+            gender: form.value.gender,
+            level: form.value.level,
+            createdAt: Date.now()
           });
+
+          // 更新或新增球員資料庫與報名次數
+          if (dbIndex === -1) {
+            const pId = 'p_' + Date.now();
+            await setDoc(doc(db, 'player_db', pId), {
+              name: form.value.name,
+              gender: form.value.gender,
+              level: form.value.level,
+              count: 1
+            });
+          } else {
+            const p = playerDb.value[dbIndex];
+            await setDoc(doc(db, 'player_db', p.id), {
+              name: p.name,
+              gender: p.gender === '無資料' ? form.value.gender : p.gender,
+              level: p.level === '無資料' ? form.value.level : p.level,
+              count: (p.count || 0) + 1
+            }, { merge: true });
+          }
 
           form.value = { name: '', gender: '', level: '' };
           autoMatched.value = null;
           alert('報名成功！');
         };
 
-        const cancelRegistration = (id) => {
-          registrations.value = registrations.value.filter(r => r.id !== id);
+        const cancelRegistration = async (id) => {
+          await deleteDoc(doc(db, 'registrations', id));
         };
 
-        // 切換資料庫項目的下拉展開狀態
         const toggleExpand = (idx) => {
-          if (activeEditIndex.value === idx) {
-            activeEditIndex.value = null;
-          } else {
-            activeEditIndex.value = idx;
-          }
+          activeEditIndex.value = activeEditIndex.value === idx ? null : idx;
         };
 
-        // 批量解析貼入的文字
-        const importBatchData = () => {
-          if (!batchText.value.trim()) {
-            alert('請先貼入文字內容！');
-            return;
-          }
+        // 批量匯入至雲端
+        const importBatchData = async () => {
+          if (!batchText.value.trim()) return alert('請先貼入文字內容！');
 
           const lines = batchText.value.split('\n');
           let successCount = 0;
 
-          lines.forEach(line => {
-            let trimmed = line.trim();
-            if (!trimmed) return;
-
-            trimmed = trimmed.replace(/^\d+[\.\s、]+/g, '').trim();
-            if (!trimmed) return;
+          for (const line of lines) {
+            let trimmed = line.trim().replace(/^\d+[\.\s、]+/g, '').trim();
+            if (!trimmed) continue;
 
             const parts = trimmed.split(/[\s,,\t\/]+/).filter(Boolean);
-
             if (parts.length >= 1) {
               let name = '';
               let gender = '無資料';
               let level = '無資料';
 
               parts.forEach((p, idx) => {
-                if (p === '男' || p === '女') {
-                  gender = p;
-                } else if (/^\d+級?$/.test(p)) {
-                  level = p.includes('級') ? p : `${p}級`;
-                } else if (idx === 0) {
-                  name = p;
-                }
+                if (p === '男' || p === '女') gender = p;
+                else if (/^\d+級?$/.test(p)) level = p.includes('級') ? p : `${p}級`;
+                else if (idx === 0) name = p;
               });
 
               if (name) {
-                const index = playerDb.value.findIndex(p => p.name === name);
-                if (index !== -1) {
-                  playerDb.value[index] = {
-                    ...playerDb.value[index],
-                    gender: gender !== '無資料' ? gender : playerDb.value[index].gender,
-                    level: level !== '無資料' ? level : playerDb.value[index].level
-                  };
-                } else {
-                  playerDb.value.push({ name, gender, level, count: 0 });
-                }
+                const existing = playerDb.value.find(p => p.name === name);
+                const docRef = existing ? doc(db, 'player_db', existing.id) : doc(db, 'player_db', 'p_' + Date.now() + Math.random().toString(36).substr(2, 4));
+                
+                await setDoc(docRef, {
+                  name,
+                  gender: gender !== '無資料' ? gender : (existing?.gender || '無資料'),
+                  level: level !== '無資料' ? level : (existing?.level || '無資料'),
+                  count: existing?.count || 0
+                }, { merge: true });
                 successCount++;
               }
             }
-          });
+          }
 
           batchText.value = '';
-          alert(`成功匯入/更新 ${successCount} 筆球員資料！`);
+          alert(`成功匯入 ${successCount} 筆資料至雲端！`);
         };
 
-        // 單筆新增球員至資料庫
-        const addSinglePlayer = () => {
-          if (!newPlayer.value.name) {
-            alert('請填寫姓名！');
-            return;
-          }
+        const addSinglePlayer = async () => {
+          if (!newPlayer.value.name) return alert('請填寫姓名！');
 
-          const index = playerDb.value.findIndex(p => p.name === newPlayer.value.name);
-          if (index !== -1) {
-            playerDb.value[index] = { ...playerDb.value[index], ...newPlayer.value };
-            alert('球員資料已存在，已進行更新！');
-          } else {
-            playerDb.value.push({ ...newPlayer.value, count: 0 });
-            alert('球員資料已新增！');
-          }
+          const existing = playerDb.value.find(p => p.name === newPlayer.value.name);
+          const docRef = existing ? doc(db, 'player_db', existing.id) : doc(db, 'player_db', 'p_' + Date.now());
+
+          await setDoc(docRef, {
+            name: newPlayer.value.name,
+            gender: newPlayer.value.gender,
+            level: newPlayer.value.level,
+            count: existing?.count || 0
+          }, { merge: true });
 
           newPlayer.value = { name: '', gender: '無資料', level: '無資料' };
+          alert('新增/更新成功！');
         };
 
-        const removeFromDb = (idx) => {
-          playerDb.value.splice(idx, 1);
-          if (activeEditIndex.value === idx) activeEditIndex.value = null;
+        const updatePlayerInDb = async (player) => {
+          await setDoc(doc(db, 'player_db', player.id), {
+            name: player.name,
+            gender: player.gender,
+            level: player.level,
+            count: Number(player.count) || 0
+          }, { merge: true });
+          activeEditIndex.value = null;
+          alert('修改已儲存至雲端！');
         };
 
-        const clearDatabase = () => {
-          if (confirm('確定要清空所有球員資料庫嗎？')) {
-            playerDb.value = [];
-            localStorage.removeItem('badminton_player_db');
-            activeEditIndex.value = null;
+        const removeFromDb = async (id) => {
+          if (confirm('確定要刪除這位球員嗎？')) {
+            await deleteDoc(doc(db, 'player_db', id));
           }
         };
 
-        // 儲存團主設定
-        const saveSettings = () => {
-          if (settings.value.location && !historyLocations.value.includes(settings.value.location)) {
-            historyLocations.value.push(settings.value.location);
+        const clearDatabase = async () => {
+          if (confirm('確定要清空所有雲端球員資料庫嗎？')) {
+            const batch = writeBatch(db);
+            playerDb.value.forEach(p => batch.delete(doc(db, 'player_db', p.id)));
+            await batch.commit();
           }
-          alert('開團設定已儲存！');
         };
 
-        // 一鍵開新團功能
-        const createNewSession = () => {
-          if (confirm('確定要開啟新的一團嗎？這將會清空「主頁報名資訊」，並自動把開團日期往後推 7 天。')) {
-            // 清空主頁報名
-            registrations.value = [];
-            localStorage.removeItem('badminton_registrations');
+        const saveSettings = async () => {
+          await setDoc(doc(db, 'app_config', 'settings'), settings.value);
+          alert('雲端開團設定已更新！');
+        };
 
-            // 自動將開團日期往後推一週 (7天)
+        const createNewSession = async () => {
+          if (confirm('確定要開啟新的一團嗎？這將清空所有報名名單，並自動把日期順延 7 天。')) {
+            const batch = writeBatch(db);
+            registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
+            await batch.commit();
+
             if (settings.value.date) {
               const currentDate = new Date(settings.value.date);
               currentDate.setDate(currentDate.getDate() + 7);
               settings.value.date = currentDate.toISOString().split('T')[0];
+              await saveSettings();
             }
-
-            alert('已成功清空報名名單並更新開團日期！');
           }
         };
 
-        const clearAllRegistrations = () => {
+        const clearAllRegistrations = async () => {
           if (confirm('確定要清空本次所有報名名單嗎？')) {
-            registrations.value = [];
-            localStorage.removeItem('badminton_registrations');
+            const batch = writeBatch(db);
+            registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
+            await batch.commit();
           }
         };
 
         return {
           currentTab,
+          isOnline,
           levelOptions,
-          historyLocations,
           settings,
           formattedActivityTime,
           form,
@@ -688,6 +674,7 @@
           toggleExpand,
           importBatchData,
           addSinglePlayer,
+          updatePlayerInDb,
           removeFromDb,
           clearDatabase,
           saveSettings,
