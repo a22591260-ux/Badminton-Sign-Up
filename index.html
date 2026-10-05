@@ -80,7 +80,7 @@
               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
             >
             <p v-if="autoMatched !== null" class="text-xs mt-1 font-medium" :class="autoMatched ? 'text-emerald-600' : 'text-amber-600'">
-              {{ autoMatched ? '已自動帶入資料庫資料' : '資料庫無完整紀錄，請手動選擇資料' }}
+              {{ autoMatched ? '已自動帶入資料庫資料' : '新球員（報名後將自動建檔至資料庫）' }}
             </p>
           </div>
 
@@ -161,6 +161,21 @@
 
       <!-- 第二分頁：球員資料庫 -->
       <section v-if="currentTab === 'database'" class="space-y-6">
+        <!-- 資料備份與備份還原（上傳/下載） -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-base border-b pb-2">💾 資料備份與備份還原 (JSON)</h3>
+          <p class="text-xs text-slate-500">可將「球員資料庫」與「報名名單」匯出成 JSON 檔案下載，或選擇 JSON 檔上傳匯入。</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button @click="exportBackupJSON" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
+              📥 下載 JSON 備份
+            </button>
+            <label class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm text-center cursor-pointer transition-colors block">
+              📤 上傳 JSON 匯入
+              <input type="file" accept=".json" @change="importBackupJSON" class="hidden">
+            </label>
+          </div>
+        </div>
+
         <!-- 批量複製貼上匯入區塊 -->
         <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
           <h3 class="font-bold text-slate-700 text-base border-b pb-2">📋 批量複製貼上匯入</h3>
@@ -169,8 +184,8 @@
           </p>
           <textarea 
             v-model="batchText" 
-            rows="5" 
-            placeholder="請直接貼上 Line 名單，例如：&#10;1.姵彤&#10;5.子瑜/女/4&#10;7.清龍/3" 
+            rows="4" 
+            placeholder="例如：&#10;1.姵彤&#10;5.子瑜/女/4&#10;7.清龍/3" 
             class="w-full px-3 py-2 border rounded-md text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           ></textarea>
           <button @click="importBatchData" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
@@ -347,7 +362,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
+      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -361,7 +377,13 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    
+    // 開啟本地快取持久化，確保離線與關閉瀏覽器後資料依然存在
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
 
     const { createApp, ref, computed, onMounted } = Vue;
 
@@ -443,7 +465,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 報名提交邏輯：更新報名名單 + 資料庫次數+1 + 清空表單
+        // 報名提交邏輯：送出報名後清空輸入框，且自動建立資料庫無紀錄之新球員
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -458,7 +480,7 @@
           const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
           const dbIndex = playerDb.value.findIndex(p => p.name === form.value.name);
 
-          // 寫入報名名單
+          // 1. 寫入報名名單
           await setDoc(doc(db, 'registrations', regId), {
             name: form.value.name,
             gender: form.value.gender,
@@ -466,7 +488,7 @@
             createdAt: Date.now()
           });
 
-          // 更新或新增資料庫（次數 +1）
+          // 2. 若球員資料庫無資料則自動新增建檔；若已有資料則更新次數與性別等級
           if (dbIndex === -1) {
             const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             await setDoc(doc(db, 'player_db', pId), {
@@ -485,7 +507,7 @@
             }, { merge: true });
           }
 
-          // 清空輸入表單資料
+          // 3. 送出報名後清空輸入欄位
           form.value = { name: '', gender: '', level: '' };
           autoMatched.value = null;
           alert('報名成功！');
@@ -547,6 +569,7 @@
           }
         };
 
+        // 單筆新增球員：新增完畢後清空輸入框
         const addSinglePlayer = async () => {
           if (!newPlayer.value.name) return alert('請填寫姓名！');
 
@@ -561,6 +584,7 @@
             count: existing?.count || 0
           }, { merge: true });
 
+          // 清空單筆新增輸入框
           newPlayer.value = { name: '', gender: '無資料', level: '無資料' };
           alert('新增/更新成功！');
         };
@@ -589,22 +613,78 @@
           }
         };
 
-        // 整合開新團功能：儲存設定 + 日期自動順延7天 + 清空報名名單
+        // 匯出 JSON (下載備份)
+        const exportBackupJSON = () => {
+          const backupData = {
+            settings: settings.value,
+            playerDb: playerDb.value,
+            registrations: registrations.value,
+            exportAt: new Date().toLocaleString()
+          };
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+          const downloadAnchor = document.createElement('a');
+          downloadAnchor.setAttribute("href", dataStr);
+          downloadAnchor.setAttribute("download", `羽球系統備份_${new Date().toISOString().split('T')[0]}.json`);
+          document.body.appendChild(downloadAnchor);
+          downloadAnchor.click();
+          downloadAnchor.remove();
+        };
+
+        // 匯入 JSON (上傳還原)
+        const importBackupJSON = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              if (data.playerDb || data.registrations) {
+                const batch = writeBatch(db);
+
+                if (Array.isArray(data.playerDb)) {
+                  data.playerDb.forEach(p => {
+                    const docRef = doc(db, 'player_db', p.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)));
+                    batch.set(docRef, { name: p.name, gender: p.gender, level: p.level, count: p.count || 0 }, { merge: true });
+                  });
+                }
+
+                if (Array.isArray(data.registrations)) {
+                  data.registrations.forEach(r => {
+                    const docRef = doc(db, 'registrations', r.id || ('reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)));
+                    batch.set(docRef, { name: r.name, gender: r.gender, level: r.level, createdAt: r.createdAt || Date.now() }, { merge: true });
+                  });
+                }
+
+                if (data.settings) {
+                  await setDoc(doc(db, 'app_config', 'settings'), data.settings, { merge: true });
+                }
+
+                await batch.commit();
+                alert('JSON 備份資料已成功匯入與還原！');
+              } else {
+                alert('JSON 檔案格式不符合需求！');
+              }
+            } catch (err) {
+              alert('讀取 JSON 檔案失敗，請確定檔案格式正確！');
+            }
+            event.target.value = '';
+          };
+          reader.readAsText(file);
+        };
+
         const createNewSession = async () => {
           if (confirm('確定要儲存開團設定並開啟新團嗎？這將清空目前的報名名單，並將日期順延一週。')) {
-            // 1. 清空報名名單
             const batch = writeBatch(db);
             registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
             await batch.commit();
 
-            // 2. 自動將日期加 7 天
             if (settings.value.date) {
               const currentDate = new Date(settings.value.date);
               currentDate.setDate(currentDate.getDate() + 7);
               settings.value.date = currentDate.toISOString().split('T')[0];
             }
 
-            // 3. 寫入雲端設定
             await setDoc(doc(db, 'app_config', 'settings'), settings.value);
             alert('成功開啟新團！設定已更新，且報名名單已清空。');
           }
@@ -643,6 +723,8 @@
           autoSavePlayer,
           removeFromDb,
           clearDatabase,
+          exportBackupJSON,
+          importBackupJSON,
           createNewSession,
           clearAllRegistrations
         };
