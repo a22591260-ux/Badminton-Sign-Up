@@ -209,12 +209,12 @@
           </button>
         </div>
 
-        <!-- 原版乾淨表格（下拉選擇直接儲存） -->
+        <!-- 球員資料庫表格 -->
         <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-3">
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h3 class="font-bold text-slate-700 text-base">建檔球員清單 ({{ playerDb.length }})</h3>
-              <p class="text-xs text-slate-400 font-medium">💡 可直接更改下拉選單，完成後點擊「儲存」</p>
+              <p class="text-xs text-emerald-600 font-medium">⚡ 更改選單或姓名後系統會自動即時存檔</p>
             </div>
             <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium">清空資料庫</button>
           </div>
@@ -223,27 +223,40 @@
             <table class="w-full text-left text-sm border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 border-b">
-                  <th class="p-2 min-w-[70px]">姓名</th>
+                  <th class="p-2 min-w-[80px]">姓名</th>
                   <th class="p-2 min-w-[80px]">性別</th>
                   <th class="p-2 min-w-[90px]">等級</th>
-                  <th class="p-2 text-center min-w-[60px]">次數</th>
-                  <th class="p-2 text-right min-w-[90px]">操作</th>
+                  <th class="p-2 text-center min-w-[50px]">次數</th>
+                  <th class="p-2 text-right min-w-[50px]">操作</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="player in playerDb" :key="player.id" class="border-b hover:bg-slate-50 transition-colors">
                   <td class="p-1.5">
-                    <input v-model.trim="player.name" type="text" class="w-full px-1.5 py-1 border rounded text-xs font-bold text-slate-800">
+                    <input 
+                      v-model.trim="player.name" 
+                      @change="autoSavePlayer(player)"
+                      type="text" 
+                      class="w-full px-1.5 py-1 border rounded text-xs font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                    >
                   </td>
                   <td class="p-1.5">
-                    <select v-model="player.gender" class="w-full px-1 py-1 border rounded text-xs bg-white">
+                    <select 
+                      v-model="player.gender" 
+                      @change="autoSavePlayer(player)"
+                      class="w-full px-1 py-1 border rounded text-xs bg-white focus:ring-1 focus:ring-indigo-500"
+                    >
                       <option value="無資料">無資料</option>
                       <option value="男">男</option>
                       <option value="女">女</option>
                     </select>
                   </td>
                   <td class="p-1.5">
-                    <select v-model="player.level" class="w-full px-1 py-1 border rounded text-xs bg-white text-indigo-600 font-medium">
+                    <select 
+                      v-model="player.level" 
+                      @change="autoSavePlayer(player)"
+                      class="w-full px-1 py-1 border rounded text-xs bg-white text-indigo-600 font-medium focus:ring-1 focus:ring-indigo-500"
+                    >
                       <option value="無資料">無資料</option>
                       <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
                     </select>
@@ -251,11 +264,8 @@
                   <td class="p-1.5 text-center font-bold text-amber-600 text-xs">
                     {{ player.count || 0 }}
                   </td>
-                  <td class="p-1.5 text-right space-x-1 whitespace-nowrap">
-                    <button @click="updatePlayerInDb(player)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded font-bold">
-                      儲存
-                    </button>
-                    <button @click="removeFromDb(player.id)" class="px-1.5 py-1 text-rose-500 hover:text-rose-700 text-xs font-medium">
+                  <td class="p-1.5 text-right whitespace-nowrap">
+                    <button @click="removeFromDb(player.id)" class="px-2 py-1 text-rose-500 hover:text-rose-700 text-xs font-medium">
                       刪除
                     </button>
                   </td>
@@ -274,16 +284,6 @@
       <section v-if="currentTab === 'admin'" class="space-y-6">
         <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-4 shadow-sm">
           <h3 class="font-bold text-slate-700 text-base border-b pb-2">活動開團設定</h3>
-
-          <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-lg flex items-center justify-between">
-            <div>
-              <p class="font-bold text-sm text-indigo-950">準備開新團嗎？</p>
-              <p class="text-xs text-indigo-700">清空目前報名名單，並將日期順延一週</p>
-            </div>
-            <button @click="createNewSession" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-md shadow-sm">
-              ✨ 一鍵開新團
-            </button>
-          </div>
 
           <div class="space-y-3">
             <div>
@@ -327,8 +327,9 @@
             </div>
           </div>
 
-          <button @click="saveSettings" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
-            儲存開團設定至雲端
+          <!-- 開新團按鈕 -->
+          <button @click="createNewSession" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-md text-sm transition-colors shadow">
+            ✨ 儲存設定並開啟新團
           </button>
 
           <div class="pt-2 border-t">
@@ -349,7 +350,6 @@
       getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 您控制台複製的 Firebase 設定檔
     const firebaseConfig = {
       apiKey: "AIzaSyBM21rSIlwVxoh-03hp6AQStiAKKTTnOhE",
       authDomain: "badminton-sign-up-b10b5.firebaseapp.com",
@@ -360,7 +360,6 @@
       measurementId: "G-2586P1RQNP"
     };
 
-    // 初始化 Firebase 與 Firestore
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -391,11 +390,7 @@
 
         const registrations = ref([]);
 
-        // -------------------------------------------------------------
-        // Firebase 即時雲端同步 (onSnapshot)
-        // -------------------------------------------------------------
         onMounted(() => {
-          // 1. 即時監聽團主設定
           onSnapshot(doc(db, 'app_config', 'settings'), (docSnap) => {
             if (docSnap.exists()) {
               settings.value = docSnap.data();
@@ -403,7 +398,6 @@
             isOnline.value = true;
           });
 
-          // 2. 即時監聽球員資料庫
           onSnapshot(collection(db, 'player_db'), (snapshot) => {
             const players = [];
             snapshot.forEach((doc) => {
@@ -412,7 +406,6 @@
             playerDb.value = players;
           });
 
-          // 3. 即時監聽報名名單
           onSnapshot(collection(db, 'registrations'), (snapshot) => {
             const regs = [];
             snapshot.forEach((doc) => {
@@ -423,9 +416,6 @@
           });
         });
 
-        // -------------------------------------------------------------
-        // 計算屬性
-        // -------------------------------------------------------------
         const formattedActivityTime = computed(() => {
           if (!settings.value.date) return '未定';
           return `${settings.value.date} ${settings.value.startTime} - ${settings.value.endTime}`;
@@ -453,9 +443,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // -------------------------------------------------------------
-        // 報名與雲端互動動作
-        // -------------------------------------------------------------
+        // 報名提交邏輯：更新報名名單 + 資料庫次數+1 + 清空表單
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -470,6 +458,7 @@
           const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
           const dbIndex = playerDb.value.findIndex(p => p.name === form.value.name);
 
+          // 寫入報名名單
           await setDoc(doc(db, 'registrations', regId), {
             name: form.value.name,
             gender: form.value.gender,
@@ -477,6 +466,7 @@
             createdAt: Date.now()
           });
 
+          // 更新或新增資料庫（次數 +1）
           if (dbIndex === -1) {
             const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             await setDoc(doc(db, 'player_db', pId), {
@@ -491,10 +481,11 @@
               name: p.name,
               gender: p.gender === '無資料' ? form.value.gender : p.gender,
               level: p.level === '無資料' ? form.value.level : p.level,
-              count: (p.count || 0) + 1
+              count: (Number(p.count) || 0) + 1
             }, { merge: true });
           }
 
+          // 清空輸入表單資料
           form.value = { name: '', gender: '', level: '' };
           autoMatched.value = null;
           alert('報名成功！');
@@ -504,7 +495,6 @@
           await deleteDoc(doc(db, 'registrations', id));
         };
 
-        // 修正：使用 Firebase Batch 一次性全數批次寫入，確保每筆有獨一無二的 ID
         const importBatchData = async () => {
           if (!batchText.value.trim()) return alert('請先貼入文字內容！');
 
@@ -530,8 +520,6 @@
 
               if (name) {
                 const existing = playerDb.value.find(p => p.name === name);
-                
-                // 產生獨一無二的 ID
                 const uniqueId = existing 
                   ? existing.id 
                   : 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -551,7 +539,7 @@
           });
 
           if (successCount > 0) {
-            await batch.commit(); // 一次性發送寫入請求
+            await batch.commit();
             batchText.value = '';
             alert(`成功匯入 ${successCount} 筆資料至雲端！`);
           } else {
@@ -577,14 +565,14 @@
           alert('新增/更新成功！');
         };
 
-        const updatePlayerInDb = async (player) => {
+        const autoSavePlayer = async (player) => {
+          if (!player.name) return;
           await setDoc(doc(db, 'player_db', player.id), {
             name: player.name,
             gender: player.gender,
             level: player.level,
             count: Number(player.count) || 0
           }, { merge: true });
-          alert(`「${player.name}」的資料已儲存更新至雲端！`);
         };
 
         const removeFromDb = async (id) => {
@@ -601,23 +589,24 @@
           }
         };
 
-        const saveSettings = async () => {
-          await setDoc(doc(db, 'app_config', 'settings'), settings.value);
-          alert('雲端開團設定已更新！');
-        };
-
+        // 整合開新團功能：儲存設定 + 日期自動順延7天 + 清空報名名單
         const createNewSession = async () => {
-          if (confirm('確定要開啟新的一團嗎？這將清空所有報名名單，並自動把日期順延 7 天。')) {
+          if (confirm('確定要儲存開團設定並開啟新團嗎？這將清空目前的報名名單，並將日期順延一週。')) {
+            // 1. 清空報名名單
             const batch = writeBatch(db);
             registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
             await batch.commit();
 
+            // 2. 自動將日期加 7 天
             if (settings.value.date) {
               const currentDate = new Date(settings.value.date);
               currentDate.setDate(currentDate.getDate() + 7);
               settings.value.date = currentDate.toISOString().split('T')[0];
-              await saveSettings();
             }
+
+            // 3. 寫入雲端設定
+            await setDoc(doc(db, 'app_config', 'settings'), settings.value);
+            alert('成功開啟新團！設定已更新，且報名名單已清空。');
           }
         };
 
@@ -651,10 +640,9 @@
           cancelRegistration,
           importBatchData,
           addSinglePlayer,
-          updatePlayerInDb,
+          autoSavePlayer,
           removeFromDb,
           clearDatabase,
-          saveSettings,
           createNewSession,
           clearAllRegistrations
         };
