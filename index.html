@@ -209,89 +209,103 @@
           </button>
         </div>
 
-        <!-- 資料庫清單 -->
-        <div>
-          <div class="flex justify-between items-center mb-2">
+        <!-- 建檔球員清單（原樣式表格 + 點擊可下拉編輯） -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-3">
+          <div class="flex justify-between items-center border-b pb-2">
             <div>
-              <h3 class="font-bold text-slate-700 text-sm">建檔球員清單 ({{ playerDb.length }})</h3>
-              <p class="text-xs text-slate-500 font-medium">💡 點擊項目即可展開/收合修改表單</p>
+              <h3 class="font-bold text-slate-700 text-base">建檔球員清單 ({{ playerDb.length }})</h3>
+              <p class="text-xs text-slate-400 font-medium">💡 點擊欄位或「編輯」按鈕可展開修改表單</p>
             </div>
-            <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700">清空資料庫</button>
+            <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium">清空資料庫</button>
           </div>
-          
-          <div class="space-y-2">
-            <div 
-              v-for="(player, idx) in playerDb" 
-              :key="player.id" 
-              class="bg-white border rounded-lg overflow-hidden shadow-sm transition-all"
-            >
-              <div 
-                @click="toggleExpand(idx)"
-                class="p-3 flex justify-between items-center cursor-pointer hover:bg-slate-50 select-none"
-              >
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-bold text-base text-slate-800">{{ player.name }}</span>
-                  <span 
-                    :class="player.gender === '無資料' ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-700'"
-                    class="text-xs px-2 py-0.5 rounded font-medium"
-                  >
-                    {{ player.gender }}
-                  </span>
-                  <span 
-                    :class="player.level === '無資料' ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-700'"
-                    class="text-xs px-2 py-0.5 rounded font-medium"
-                  >
-                    {{ player.level }}
-                  </span>
-                  <span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold border border-amber-200">
-                    已報名 {{ player.count || 0 }} 次
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-indigo-600 font-medium">
-                    {{ activeEditIndex === idx ? '▲ 收合' : '▼ 編輯' }}
-                  </span>
-                  <button @click.stop="removeFromDb(player.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium ml-2">刪除</button>
-                </div>
-              </div>
 
-              <!-- 下拉展開式編輯區域 -->
-              <div v-if="activeEditIndex === idx" class="p-4 bg-slate-50 border-t border-slate-200 space-y-3">
-                <div class="text-xs font-bold text-slate-600 mb-1">✏️ 修改球員資料：</div>
-                <div>
-                  <label class="block text-xs font-medium text-slate-600 mb-1">姓名</label>
-                  <input v-model.trim="player.name" type="text" class="w-full px-3 py-1.5 border rounded-md text-sm bg-white">
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                  <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">性別</label>
-                    <select v-model="player.gender" class="w-full px-2 py-1.5 border rounded-md text-sm bg-white">
-                      <option value="無資料">無資料</option>
-                      <option value="男">男</option>
-                      <option value="女">女</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">羽球等級</label>
-                    <select v-model="player.level" class="w-full px-2 py-1.5 border rounded-md text-sm bg-white">
-                      <option value="無資料">無資料</option>
-                      <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">累計報名次數</label>
-                    <input v-model.number="player.count" type="number" min="0" class="w-full px-2 py-1.5 border rounded-md text-sm bg-white">
-                  </div>
-                </div>
-                <div class="pt-1 flex justify-end">
-                  <button @click="updatePlayerInDb(player)" class="bg-indigo-600 text-white text-xs px-4 py-1.5 rounded-md font-bold hover:bg-indigo-700">
-                    儲存更新
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b">
+                  <th class="p-2">姓名</th>
+                  <th class="p-2">性別</th>
+                  <th class="p-2">等級</th>
+                  <th class="p-2 text-center">報名次數</th>
+                  <th class="p-2 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(player, idx) in playerDb" :key="player.id">
+                  <!-- 主要資料行 -->
+                  <tr 
+                    @click="toggleExpand(idx)" 
+                    class="border-b hover:bg-indigo-50/50 cursor-pointer transition-colors"
+                  >
+                    <td class="p-2 font-bold text-slate-800">{{ player.name }}</td>
+                    <td class="p-2">
+                      <span :class="player.gender === '無資料' ? 'text-slate-400' : 'text-slate-700'">
+                        {{ player.gender }}
+                      </span>
+                    </td>
+                    <td class="p-2">
+                      <span :class="player.level === '無資料' ? 'text-slate-400' : 'text-indigo-600 font-medium'">
+                        {{ player.level }}
+                      </span>
+                    </td>
+                    <td class="p-2 text-center font-bold text-amber-600">{{ player.count || 0 }} 次</td>
+                    <td class="p-2 text-right space-x-2">
+                      <button @click.stop="toggleExpand(idx)" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold">
+                        {{ activeEditIndex === idx ? '收合 ▲' : '編輯 ▼' }}
+                      </button>
+                      <button @click.stop="removeFromDb(player.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium">刪除</button>
+                    </td>
+                  </tr>
 
-            <p v-if="playerDb.length === 0" class="p-3 text-xs text-slate-400 text-center bg-white border rounded-lg">雲端資料庫為空</p>
+                  <!-- 下拉展開編輯區塊 -->
+                  <tr v-if="activeEditIndex === idx" :key="'edit-' + player.id" class="bg-indigo-50/40 border-b">
+                    <td colspan="5" class="p-3">
+                      <div class="bg-white border border-indigo-200 rounded-lg p-3 space-y-3 shadow-inner">
+                        <div class="text-xs font-bold text-indigo-800">✏️ 修改球員資料：</div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="block text-xs text-slate-600 mb-1">姓名</label>
+                            <input v-model.trim="player.name" type="text" class="w-full px-2 py-1 border rounded text-xs">
+                          </div>
+                          <div>
+                            <label class="block text-xs text-slate-600 mb-1">累計報名次數</label>
+                            <input v-model.number="player.count" type="number" min="0" class="w-full px-2 py-1 border rounded text-xs">
+                          </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="block text-xs text-slate-600 mb-1">性別</label>
+                            <select v-model="player.gender" class="w-full px-2 py-1 border rounded text-xs bg-white">
+                              <option value="無資料">無資料</option>
+                              <option value="男">男</option>
+                              <option value="女">女</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label class="block text-xs text-slate-600 mb-1">羽球等級</label>
+                            <select v-model="player.level" class="w-full px-2 py-1 border rounded text-xs bg-white">
+                              <option value="無資料">無資料</option>
+                              <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-1">
+                          <button @click="toggleExpand(idx)" class="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded font-medium">取消</button>
+                          <button @click="updatePlayerInDb(player)" class="px-3 py-1 bg-indigo-600 text-white text-xs rounded font-bold hover:bg-indigo-700">儲存更新</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <tr v-if="playerDb.length === 0">
+                  <td colspan="5" class="p-4 text-center text-xs text-slate-400">雲端資料庫目前無球員資料</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
