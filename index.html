@@ -700,9 +700,8 @@
 
             const batch = writeBatch(db);
             let importedPlayerCount = 0;
-            let importedRegCount = 0;
 
-            // 1. 優先尋找並處理「球員資料庫」頁籤
+            // 處理「球員資料庫」頁籤或第一個頁籤
             const playerSheetName = workbook.SheetNames.find(name => name.includes('球員') || name.includes('資料庫')) || workbook.SheetNames[0];
             if (playerSheetName) {
               const playerSheet = workbook.Sheets[playerSheetName];
@@ -732,66 +731,38 @@
               });
             }
 
-            // 2. 尋找並處理「報名名單」頁籤 (若 Excel 內包含此分頁)
-            const regSheetName = workbook.SheetNames.find(name => name.includes('報名'));
-            if (regSheetName) {
-              const regSheet = workbook.Sheets[regSheetName];
-              const rawRegs = XLSX.utils.sheet_to_json(regSheet);
-
-              rawRegs.forEach(row => {
-                const name = row['姓名'] || row['name'];
-                if (name) {
-                  const gender = row['性別'] || row['gender'] || '男';
-                  const level = row['羽球等級'] || row['等級'] || row['level'] || '1級';
-
-                  const uniqueId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-                  const docRef = doc(db, 'registrations', uniqueId);
-
-                  batch.set(docRef, {
-                    id: uniqueId,
-                    name: String(name).trim(),
-                    gender: String(gender).trim(),
-                    level: String(level).trim(),
-                    createdAt: Date.now()
-                  }, { merge: true });
-
-                  importedRegCount++;
-                }
-              });
+            if (importedPlayerCount > 0) {
+              await batch.commit();
+              alert(`成功從 Excel 匯入 ${importedPlayerCount} 筆資料！`);
+            } else {
+              alert('未在 Excel 檔案中找到可對應的欄位與資料！');
             }
-
-            await batch.commit();
-            alert(`Excel 檔案匯入成功！\n共同步：${importedPlayerCount} 位球員資料` + (importedRegCount > 0 ? `，${importedRegCount} 筆報名資料。` : '。'));
           } catch (err) {
             console.error("Excel 匯入失敗:", err);
-            alert('讀取 Excel 檔案失敗，請確定檔案為標準的 .xlsx 或 .xls 試算表格式！');
+            alert('匯入失敗，請確認檔案格式是否正確。');
           } finally {
-            if (event.target) event.target.value = '';
+            if (fileInput.value) fileInput.value.value = '';
           }
         };
 
+        // 團主設定：儲存設定並開啟新團
         const createNewSession = async () => {
-          if (confirm('確定要儲存開團設定並開啟新團嗎？這將清空目前的報名名單，並將日期順延一週。')) {
-            const batch = writeBatch(db);
-            registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
-            await batch.commit();
-
-            if (settings.value.date) {
-              const currentDate = new Date(settings.value.date);
-              currentDate.setDate(currentDate.getDate() + 7);
-              settings.value.date = currentDate.toISOString().split('T')[0];
-            }
-
+          try {
             await setDoc(doc(db, 'app_config', 'settings'), settings.value);
-            alert('成功開啟新團！設定已更新，且報名名單已清空。');
+            alert('活動設定已儲存！');
+          } catch (err) {
+            console.error("設定儲存失敗:", err);
+            alert('設定儲存失敗，請重試！');
           }
         };
 
+        // 清空本次報名資料
         const clearAllRegistrations = async () => {
-          if (confirm('確定要清空本次所有報名名單嗎？')) {
+          if (confirm('確定要清空「本次」的所有報名資料嗎？（不會影響球員資料庫）')) {
             const batch = writeBatch(db);
             registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
             await batch.commit();
+            alert('已成功清空本次報名名單！');
           }
         };
 
@@ -800,14 +771,14 @@
           isOnline,
           levelOptions,
           settings,
-          formattedActivityTime,
           form,
+          autoMatched,
+          playerDb,
           newPlayer,
           batchText,
           fileInput,
-          autoMatched,
-          playerDb,
           registrations,
+          formattedActivityTime,
           regularList,
           waitlist,
           regularCount,
