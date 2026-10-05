@@ -196,7 +196,7 @@
           <textarea 
             v-model="batchText" 
             rows="4" 
-            placeholder="例如：&#10;1.姵彤&#10;5.子瑜/女/4&#10;7.清龍/3" 
+            placeholder="例如：&#10;1.姵彤&#10;5.子瑜 女 4&#10;7.清龍 3" 
             class="w-full px-3 py-2 border rounded-md text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           ></textarea>
           <button @click="importBatchData" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
@@ -482,7 +482,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 複製正取名單至剪貼簿
+        // 複製正取名單至剪貼簿（格式：4.米血 男 5級）
         const copyRegularList = async () => {
           if (regularList.value.length === 0) {
             alert('目前沒有正取名單可複製！');
@@ -490,8 +490,8 @@
           }
 
           const textLines = regularList.value.map((item, idx) => {
-            const genderStr = (item.gender && item.gender !== '無資料') ? `/${item.gender}` : '';
-            const levelStr = (item.level && item.level !== '無資料') ? `/${item.level}` : '';
+            const genderStr = (item.gender && item.gender !== '無資料') ? ` ${item.gender}` : '';
+            const levelStr = (item.level && item.level !== '無資料') ? ` ${item.level}` : '';
             return `${idx + 1}.${item.name}${genderStr}${levelStr}`;
           });
 
@@ -501,7 +501,6 @@
             if (navigator.clipboard && window.isSecureContext) {
               await navigator.clipboard.writeText(copyText);
             } else {
-              // 舊版瀏覽器備用方案
               const textArea = document.createElement("textarea");
               textArea.value = copyText;
               document.body.appendChild(textArea);
