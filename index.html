@@ -634,7 +634,7 @@
           }
         };
 
-        // 清空資料庫（增加密碼 1234 驗證）
+        // 清空資料庫（密碼 1234）
         const clearDatabase = async () => {
           const pwd = prompt('為防止誤刪資料，請輸入清空密碼（預設密碼：1234）：');
           if (pwd === '1234') {
@@ -664,62 +664,66 @@
           downloadAnchor.remove();
         };
 
-        // 匯入 JSON (上傳還原修復)
-        const importBackupJSON = (event) => {
+        // 匯入 JSON (採用最新 await file.text() 直讀並同步寫入)
+        const importBackupJSON = async (event) => {
           const file = event.target.files && event.target.files[0];
           if (!file) return;
 
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            try {
-              const data = JSON.parse(e.target.result);
-              if (data.playerDb || data.registrations || data.settings) {
-                const batch = writeBatch(db);
+          try {
+            const rawText = await file.text();
+            const data = JSON.parse(rawText);
 
-                if (Array.isArray(data.playerDb)) {
-                  data.playerDb.forEach(p => {
-                    const uniqueId = p.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
-                    const docRef = doc(db, 'player_db', uniqueId);
-                    batch.set(docRef, { 
-                      id: uniqueId, 
-                      name: p.name || '', 
-                      gender: p.gender || '無資料', 
-                      level: p.level || '無資料', 
-                      count: Number(p.count) || 0 
-                    }, { merge: true });
-                  });
-                }
+            if (data.playerDb || data.registrations || data.settings) {
+              const batch = writeBatch(db);
 
-                if (Array.isArray(data.registrations)) {
-                  data.registrations.forEach(r => {
-                    const uniqueId = r.id || ('reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
-                    const docRef = doc(db, 'registrations', uniqueId);
-                    batch.set(docRef, { 
-                      id: uniqueId,
-                      name: r.name || '', 
-                      gender: r.gender || '男', 
-                      level: r.level || '1級', 
-                      createdAt: r.createdAt || Date.now() 
-                    }, { merge: true });
-                  });
-                }
+              let pCount = 0;
+              let rCount = 0;
 
-                if (data.settings) {
-                  await setDoc(doc(db, 'app_config', 'settings'), data.settings, { merge: true });
-                }
-
-                await batch.commit();
-                alert('JSON 備份資料已成功上傳與還原至雲端！');
-              } else {
-                alert('JSON 檔案內容缺少有效的備份資料格式！');
+              if (Array.isArray(data.playerDb)) {
+                data.playerDb.forEach(p => {
+                  const uniqueId = p.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+                  const docRef = doc(db, 'player_db', uniqueId);
+                  batch.set(docRef, { 
+                    id: uniqueId, 
+                    name: p.name || '', 
+                    gender: p.gender || '無資料', 
+                    level: p.level || '無資料', 
+                    count: Number(p.count) || 0 
+                  }, { merge: true });
+                  pCount++;
+                });
               }
-            } catch (err) {
-              console.error("JSON上傳解析錯誤:", err);
-              alert('讀取 JSON 檔案失敗，請確定選擇的檔案為合法的備份 JSON！');
+
+              if (Array.isArray(data.registrations)) {
+                data.registrations.forEach(r => {
+                  const uniqueId = r.id || ('reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+                  const docRef = doc(db, 'registrations', uniqueId);
+                  batch.set(docRef, { 
+                    id: uniqueId,
+                    name: r.name || '', 
+                    gender: r.gender || '男', 
+                    level: r.level || '1級', 
+                    createdAt: r.createdAt || Date.now() 
+                  }, { merge: true });
+                  rCount++;
+                });
+              }
+
+              if (data.settings) {
+                await setDoc(doc(db, 'app_config', 'settings'), data.settings, { merge: true });
+              }
+
+              await batch.commit();
+              alert(`備份資料匯入成功！\n共同步：${pCount} 位球員資料，${rCount} 筆報名名單。`);
+            } else {
+              alert('JSON 檔案內容結構不符合備份格式！');
             }
+          } catch (err) {
+            console.error("JSON匯入失敗:", err);
+            alert('讀取 JSON 檔案失敗，請確定檔案格式正確！');
+          } finally {
             if (event.target) event.target.value = '';
-          };
-          reader.readAsText(file);
+          }
         };
 
         const createNewSession = async () => {
