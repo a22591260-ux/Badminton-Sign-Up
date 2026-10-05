@@ -372,14 +372,15 @@
       collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+    // 最新 Firebase 專案設定資訊 (Project ID: badminton-sign-up-692fb)
     const firebaseConfig = {
-      apiKey: "AIzaSyBM21rSIlwVxoh-03hp6AQStiAKKTTnOhE",
-      authDomain: "badminton-sign-up-b10b5.firebaseapp.com",
-      projectId: "badminton-sign-up-b10b5",
-      storageBucket: "badminton-sign-up-b10b5.firebasestorage.app",
-      messagingSenderId: "735341515743",
-      appId: "1:735341515743:web:9ac2ce25d47d5fbf06ea6a",
-      measurementId: "G-2586P1RQNP"
+      apiKey: "AIzaSyAtKQUjbKyfYdJEFlbsJmjErGbU4QBnlbg",
+      authDomain: "badminton-sign-up-692fb.firebaseapp.com",
+      projectId: "badminton-sign-up-692fb",
+      storageBucket: "badminton-sign-up-692fb.firebasestorage.app",
+      messagingSenderId: "234481757954",
+      appId: "1:234481757954:web:a32fca34ae074ed8f91c1b",
+      measurementId: "G-4LP1CGPGFW"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -472,7 +473,6 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 報名提交邏輯
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -538,7 +538,6 @@
           await deleteDoc(doc(db, 'registrations', id));
         };
 
-        // 批量複製貼上匯入
         const importBatchData = async () => {
           const rawText = batchText.value.trim();
           if (!rawText) return alert('請先貼入文字內容！');
@@ -594,7 +593,6 @@
           }
         };
 
-        // 單筆新增球員
         const addSinglePlayer = async () => {
           if (!newPlayer.value.name) return alert('請填寫姓名！');
 
@@ -645,14 +643,12 @@
           }
         };
 
-        // 📥 匯出成 Excel (.xlsx) 檔案
         const exportExcel = () => {
           if (typeof XLSX === 'undefined') {
             alert('Excel 模組尚未載入完成，請稍微再試一次！');
             return;
           }
 
-          // 1. 準備球員資料庫工作表內容
           const playerRows = playerDb.value.map(p => ({
             '姓名': p.name || '',
             '性別': p.gender || '無資料',
@@ -660,7 +656,6 @@
             '報名次數': Number(p.count) || 0
           }));
 
-          // 2. 準備本次報名名單工作表內容
           const regRows = registrations.value.map((r, index) => ({
             '序號': index + 1,
             '姓名': r.name || '',
@@ -669,22 +664,17 @@
             '報名類別': index < settings.value.maxRegular ? '正取' : '候補'
           }));
 
-          // 建立活頁簿 (Workbook)
           const wb = XLSX.utils.book_new();
-
-          // 建立並寫入工作表 (Worksheets)
           const wsPlayers = XLSX.utils.json_to_sheet(playerRows.length > 0 ? playerRows : [{'姓名': '', '性別': '', '羽球等級': '', '報名次數': 0}]);
           const wsRegs = XLSX.utils.json_to_sheet(regRows.length > 0 ? regRows : [{'序號': '', '姓名': '', '性別': '', '羽球等級': '', '報名類別': ''}]);
 
           XLSX.utils.book_append_sheet(wb, wsPlayers, "球員資料庫");
           XLSX.utils.book_append_sheet(wb, wsRegs, "報名名單");
 
-          // 下載檔案
           const fileName = `羽球系統資料備份_${new Date().toISOString().split('T')[0]}.xlsx`;
           XLSX.writeFile(wb, fileName);
         };
 
-        // 📤 上傳讀取 Excel (.xlsx / .xls) 檔案
         const importExcel = async (event) => {
           const file = event.target.files && event.target.files[0];
           if (!file) return;
@@ -701,7 +691,6 @@
             const batch = writeBatch(db);
             let importedPlayerCount = 0;
 
-            // 處理「球員資料庫」頁籤或第一個頁籤
             const playerSheetName = workbook.SheetNames.find(name => name.includes('球員') || name.includes('資料庫')) || workbook.SheetNames[0];
             if (playerSheetName) {
               const playerSheet = workbook.Sheets[playerSheetName];
@@ -745,7 +734,6 @@
           }
         };
 
-        // 團主設定：儲存設定並開啟新團
         const createNewSession = async () => {
           try {
             await setDoc(doc(db, 'app_config', 'settings'), settings.value);
@@ -756,7 +744,6 @@
           }
         };
 
-        // 清空本次報名資料
         const clearAllRegistrations = async () => {
           if (confirm('確定要清空「本次」的所有報名資料嗎？（不會影響球員資料庫）')) {
             const batch = writeBatch(db);
