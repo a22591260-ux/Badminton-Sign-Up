@@ -372,7 +372,7 @@
       collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 最新 Firebase 專案設定資訊 (Project ID: badminton-sign-up-692fb)
+    // 最新 Firebase 專案設定資訊
     const firebaseConfig = {
       apiKey: "AIzaSyAtKQUjbKyfYdJEFlbsJmjErGbU4QBnlbg",
       authDomain: "badminton-sign-up-692fb.firebaseapp.com",
@@ -734,13 +734,32 @@
           }
         };
 
+        // 開啟新團：儲存設定並一併清空主頁報名資料
         const createNewSession = async () => {
+          if (!confirm('確定要開啟新團嗎？這將會儲存新設定，並【清空本次主頁的所有報名資料】！')) {
+            return;
+          }
+
           try {
-            await setDoc(doc(db, 'app_config', 'settings'), settings.value);
-            alert('活動設定已儲存！');
+            const batch = writeBatch(db);
+
+            // 1. 更新團主活動設定
+            const configRef = doc(db, 'app_config', 'settings');
+            batch.set(configRef, settings.value);
+
+            // 2. 一併清空所有主頁報名資料
+            registrations.value.forEach(r => {
+              const regRef = doc(db, 'registrations', r.id);
+              batch.delete(regRef);
+            });
+
+            // 執行原子寫入
+            await batch.commit();
+
+            alert('✨ 新團已成功開啟！活動設定已更新，主頁報名名單已清空。');
           } catch (err) {
-            console.error("設定儲存失敗:", err);
-            alert('設定儲存失敗，請重試！');
+            console.error("開啟新團失敗:", err);
+            alert('開啟新團時發生錯誤，請重試！');
           }
         };
 
