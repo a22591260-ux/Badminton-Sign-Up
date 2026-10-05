@@ -465,7 +465,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 報名提交邏輯：送出報名後清空輸入框，且自動建立資料庫無紀錄之新球員
+        // 報名提交邏輯：即刻清空欄位，避免非同步或 alert 延遲
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -477,50 +477,64 @@
             return;
           }
 
-          const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-          const dbIndex = playerDb.value.findIndex(p => p.name === form.value.name);
+          const submittedName = form.value.name;
+          const submittedGender = form.value.gender;
+          const submittedLevel = form.value.level;
 
-          // 1. 寫入報名名單
-          await setDoc(doc(db, 'registrations', regId), {
-            name: form.value.name,
-            gender: form.value.gender,
-            level: form.value.level,
-            createdAt: Date.now()
-          });
-
-          // 2. 若球員資料庫無資料則自動新增建檔；若已有資料則更新次數與性別等級
-          if (dbIndex === -1) {
-            const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-            await setDoc(doc(db, 'player_db', pId), {
-              name: form.value.name,
-              gender: form.value.gender,
-              level: form.value.level,
-              count: 1
-            });
-          } else {
-            const p = playerDb.value[dbIndex];
-            await setDoc(doc(db, 'player_db', p.id), {
-              name: p.name,
-              gender: p.gender === '無資料' ? form.value.gender : p.gender,
-              level: p.level === '無資料' ? form.value.level : p.level,
-              count: (Number(p.count) || 0) + 1
-            }, { merge: true });
-          }
-
-          // 3. 送出報名後清空輸入欄位
+          // 立即重置輸入框與匹配標籤
           form.value = { name: '', gender: '', level: '' };
           autoMatched.value = null;
-          alert('報名成功！');
+
+          const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+          const dbIndex = playerDb.value.findIndex(p => p.name === submittedName);
+
+          try {
+            // 1. 寫入報名名單
+            await setDoc(doc(db, 'registrations', regId), {
+              name: submittedName,
+              gender: submittedGender,
+              level: submittedLevel,
+              createdAt: Date.now()
+            });
+
+            // 2. 自動建檔或更新次數
+            if (dbIndex === -1) {
+              const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+              await setDoc(doc(db, 'player_db', pId), {
+                name: submittedName,
+                gender: submittedGender,
+                level: submittedLevel,
+                count: 1
+              });
+            } else {
+              const p = playerDb.value[dbIndex];
+              await setDoc(doc(db, 'player_db', p.id), {
+                name: p.name,
+                gender: p.gender === '無資料' ? submittedGender : p.gender,
+                level: p.level === '無資料' ? submittedLevel : p.level,
+                count: (Number(p.count) || 0) + 1
+              }, { merge: true });
+            }
+
+            alert('報名成功！');
+          } catch (err) {
+            alert('報名發生錯誤，請重試！');
+          }
         };
 
         const cancelRegistration = async (id) => {
           await deleteDoc(doc(db, 'registrations', id));
         };
 
+        // 批量複製貼上匯入：立即清空文字框
         const importBatchData = async () => {
-          if (!batchText.value.trim()) return alert('請先貼入文字內容！');
+          const rawText = batchText.value.trim();
+          if (!rawText) return alert('請先貼入文字內容！');
 
-          const lines = batchText.value.split('\n');
+          // 點擊後立刻清空框內文字
+          batchText.value = '';
+
+          const lines = rawText.split('\n');
           let successCount = 0;
           const batch = writeBatch(db);
 
@@ -562,7 +576,6 @@
 
           if (successCount > 0) {
             await batch.commit();
-            batchText.value = '';
             alert(`成功匯入 ${successCount} 筆資料至雲端！`);
           } else {
             alert('未成功解析到任何有效名單！');
@@ -573,19 +586,20 @@
         const addSinglePlayer = async () => {
           if (!newPlayer.value.name) return alert('請填寫姓名！');
 
-          const existing = playerDb.value.find(p => p.name === newPlayer.value.name);
+          const submitted = { ...newPlayer.value };
+          newPlayer.value = { name: '', gender: '無資料', level: '無資料' };
+
+          const existing = playerDb.value.find(p => p.name === submitted.name);
           const uniqueId = existing ? existing.id : 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
           const docRef = doc(db, 'player_db', uniqueId);
 
           await setDoc(docRef, {
-            name: newPlayer.value.name,
-            gender: newPlayer.value.gender,
-            level: newPlayer.value.level,
+            name: submitted.name,
+            gender: submitted.gender,
+            level: submitted.level,
             count: existing?.count || 0
           }, { merge: true });
 
-          // 清空單筆新增輸入框
-          newPlayer.value = { name: '', gender: '無資料', level: '無資料' };
           alert('新增/更新成功！');
         };
 
