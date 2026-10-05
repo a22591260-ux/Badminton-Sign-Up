@@ -171,7 +171,7 @@
             </button>
             <label class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm text-center cursor-pointer transition-colors block">
               📤 上傳 JSON 匯入
-              <input type="file" accept=".json" @change="importBackupJSON" class="hidden">
+              <input type="file" ref="fileInput" accept=".json" @change="importBackupJSON" class="hidden">
             </label>
           </div>
         </div>
@@ -231,7 +231,11 @@
               <h3 class="font-bold text-slate-700 text-base">建檔球員清單 ({{ playerDb.length }})</h3>
               <p class="text-xs text-emerald-600 font-medium">⚡ 更改選單或姓名後系統會自動即時存檔</p>
             </div>
-            <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium">清空資料庫</button>
+            <div class="text-right">
+              <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium block">
+                清空資料庫 <span class="text-[10px] text-slate-400">(密碼: 1234)</span>
+              </button>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
@@ -409,6 +413,7 @@
         const playerDb = ref([]);
         const newPlayer = ref({ name: '', gender: '無資料', level: '無資料' });
         const batchText = ref('');
+        const fileInput = ref(null);
 
         const registrations = ref([]);
 
@@ -465,7 +470,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 報名提交邏輯：修正自動建檔寫入
+        // 報名提交邏輯：使用原子化 writeBatch 確保雙向同時成功寫入
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -485,43 +490,48 @@
           form.value = { name: '', gender: '', level: '' };
           autoMatched.value = null;
 
-          const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-          const dbIndex = playerDb.value.findIndex(p => p.name === submittedName);
+          const batch = writeBatch(db);
 
-          try {
-            // 1. 寫入報名名單
-            await setDoc(doc(db, 'registrations', regId), {
+          // 1. 寫入報名表
+          const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+          const regRef = doc(db, 'registrations', regId);
+          batch.set(regRef, {
+            id: regId,
+            name: submittedName,
+            gender: submittedGender,
+            level: submittedLevel,
+            createdAt: Date.now()
+          });
+
+          // 2. 寫入或更新球員資料庫
+          const existing = playerDb.value.find(p => p.name === submittedName);
+          if (!existing) {
+            const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            const pRef = doc(db, 'player_db', pId);
+            batch.set(pRef, {
+              id: pId,
               name: submittedName,
               gender: submittedGender,
               level: submittedLevel,
-              createdAt: Date.now()
+              count: 1
             });
+          } else {
+            const pRef = doc(db, 'player_db', existing.id);
+            batch.set(pRef, {
+              id: existing.id,
+              name: existing.name,
+              gender: (!existing.gender || existing.gender === '無資料') ? submittedGender : existing.gender,
+              level: (!existing.level || existing.level === '無資料') ? submittedLevel : existing.level,
+              count: (Number(existing.count) || 0) + 1
+            }, { merge: true });
+          }
 
-            // 2. 確實將新球員建檔至資料庫或更新次數
-            if (dbIndex === -1) {
-              const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-              await setDoc(doc(db, 'player_db', pId), {
-                id: pId,
-                name: submittedName,
-                gender: submittedGender,
-                level: submittedLevel,
-                count: 1
-              });
-            } else {
-              const p = playerDb.value[dbIndex];
-              await setDoc(doc(db, 'player_db', p.id), {
-                id: p.id,
-                name: p.name,
-                gender: (!p.gender || p.gender === '無資料') ? submittedGender : p.gender,
-                level: (!p.level || p.level === '無資料') ? submittedLevel : p.level,
-                count: (Number(p.count) || 0) + 1
-              }, { merge: true });
-            }
-
-            alert('報名成功，並已更新球員資料庫！');
+          try {
+            await batch.commit();
+            alert('報名成功，已自動將球員建檔/更新至資料庫！');
           } catch (err) {
             console.error("報名寫入失敗:", err);
-            alert('報名發生錯誤，請重試！');
+            alert('報名發生錯誤，請重新嘗試！');
           }
         };
 
@@ -624,11 +634,16 @@
           }
         };
 
+        // 清空資料庫（增加密碼 1234 驗證）
         const clearDatabase = async () => {
-          if (confirm('確定要清空所有雲端球員資料庫嗎？')) {
+          const pwd = prompt('為防止誤刪資料，請輸入清空密碼（預設密碼：1234）：');
+          if (pwd === '1234') {
             const batch = writeBatch(db);
             playerDb.value.forEach(p => batch.delete(doc(db, 'player_db', p.id)));
             await batch.commit();
+            alert('已成功清空球員資料庫！');
+          } else if (pwd !== null) {
+            alert('密碼錯誤！無法清空資料庫。');
           }
         };
 
@@ -649,23 +664,29 @@
           downloadAnchor.remove();
         };
 
-        // 匯入 JSON (上傳還原)
+        // 匯入 JSON (上傳還原修復)
         const importBackupJSON = (event) => {
-          const file = event.target.files[0];
+          const file = event.target.files && event.target.files[0];
           if (!file) return;
 
           const reader = new FileReader();
           reader.onload = async (e) => {
             try {
               const data = JSON.parse(e.target.result);
-              if (data.playerDb || data.registrations) {
+              if (data.playerDb || data.registrations || data.settings) {
                 const batch = writeBatch(db);
 
                 if (Array.isArray(data.playerDb)) {
                   data.playerDb.forEach(p => {
                     const uniqueId = p.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
                     const docRef = doc(db, 'player_db', uniqueId);
-                    batch.set(docRef, { id: uniqueId, name: p.name, gender: p.gender, level: p.level, count: p.count || 0 }, { merge: true });
+                    batch.set(docRef, { 
+                      id: uniqueId, 
+                      name: p.name || '', 
+                      gender: p.gender || '無資料', 
+                      level: p.level || '無資料', 
+                      count: Number(p.count) || 0 
+                    }, { merge: true });
                   });
                 }
 
@@ -673,7 +694,13 @@
                   data.registrations.forEach(r => {
                     const uniqueId = r.id || ('reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
                     const docRef = doc(db, 'registrations', uniqueId);
-                    batch.set(docRef, { name: r.name, gender: r.gender, level: r.level, createdAt: r.createdAt || Date.now() }, { merge: true });
+                    batch.set(docRef, { 
+                      id: uniqueId,
+                      name: r.name || '', 
+                      gender: r.gender || '男', 
+                      level: r.level || '1級', 
+                      createdAt: r.createdAt || Date.now() 
+                    }, { merge: true });
                   });
                 }
 
@@ -682,14 +709,15 @@
                 }
 
                 await batch.commit();
-                alert('JSON 備份資料已成功匯入與還原！');
+                alert('JSON 備份資料已成功上傳與還原至雲端！');
               } else {
-                alert('JSON 檔案格式不符合需求！');
+                alert('JSON 檔案內容缺少有效的備份資料格式！');
               }
             } catch (err) {
-              alert('讀取 JSON 檔案失敗，請確定檔案格式正確！');
+              console.error("JSON上傳解析錯誤:", err);
+              alert('讀取 JSON 檔案失敗，請確定選擇的檔案為合法的備份 JSON！');
             }
-            event.target.value = '';
+            if (event.target) event.target.value = '';
           };
           reader.readAsText(file);
         };
@@ -728,6 +756,7 @@
           form,
           newPlayer,
           batchText,
+          fileInput,
           autoMatched,
           playerDb,
           registrations,
