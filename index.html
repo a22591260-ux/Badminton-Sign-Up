@@ -12,7 +12,973 @@
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
   <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-md flex flex-col">
     <!-- 頂部標題列 -->
+    <header class="bg-indigo-6<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>羽球報名系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- 引入 Excel 處理函式庫 SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
+  <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-md flex flex-col">
+    <!-- 頂部標題列 -->
     <header class="bg-indigo-600 text-white p-4 shadow flex justify-between items-center">
+      <h1 class="text-xl font-bold text-center flex-1">羽球報名系統</h1>
+      <span class="text-xs bg-indigo-800 px-2 py-1 rounded" :class="isOnline ? 'text-emerald-300' : 'text-rose-300'">
+        {{ isOnline ? '🟢 雲端同步中' : '🔴 連線中...' }}
+      </span>
+    </header>
+
+    <!-- 分頁切換選單 -->
+    <nav class="flex border-b border-slate-200 bg-slate-50 text-base">
+      <button 
+        @click="currentTab = 'home'"
+        :class="['flex-1 py-3 text-center font-bold border-b-2 transition-colors', currentTab === 'home' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700']">
+        主頁報名
+      </button>
+      <button 
+        @click="currentTab = 'database'"
+        :class="['flex-1 py-3 text-center font-bold border-b-2 transition-colors', currentTab === 'database' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700']">
+        球員資料庫
+      </button>
+      <button 
+        @click="currentTab = 'admin'"
+        :class="['flex-1 py-3 text-center font-bold border-b-2 transition-colors', currentTab === 'admin' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700']">
+        團主設定
+      </button>
+    </nav>
+
+    <!-- 主要內容區 -->
+    <main class="flex-1 p-4 overflow-y-auto">
+
+      <!-- 第一分頁：主頁面報名 -->
+      <section v-if="currentTab === 'home'" class="space-y-6">
+        <!-- 活動資訊卡片 -->
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 space-y-3 shadow-sm">
+          <div class="flex justify-between items-center border-b border-indigo-200 pb-2">
+            <h2 class="font-extrabold text-indigo-900 text-xl">本次活動資訊</h2>
+            <span class="text-sm bg-indigo-600 text-white px-3 py-1 rounded-full font-bold">
+              {{ settings.courts }} 面場地
+            </span>
+          </div>
+          <div class="text-base text-indigo-900 space-y-2 font-medium">
+            <p><strong class="text-indigo-950">時間：</strong>{{ formattedActivityTime }}</p>
+            <p><strong class="text-indigo-950">地點：</strong>{{ settings.location || '未定' }}</p>
+          </div>
+          <div class="pt-3 border-t border-indigo-200 flex justify-around text-center">
+            <div>
+              <p class="text-sm text-slate-600 font-bold">正取名額</p>
+              <p class="text-2xl font-black text-indigo-700">{{ regularCount }} / {{ settings.maxRegular }}</p>
+            </div>
+            <div class="w-px bg-indigo-200"></div>
+            <div>
+              <p class="text-sm text-slate-600 font-bold">候補名額</p>
+              <p class="text-2xl font-black text-amber-600">{{ waitlistCount }} / {{ settings.maxWaitlist }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 報名表單 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-4 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-lg border-b pb-2">填寫報名資料</h3>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">姓名 *</label>
+            <input 
+              v-model.trim="form.name" 
+              @input="onNameInput"
+              type="text" 
+              placeholder="請輸入姓名" 
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
+            >
+            <p v-if="autoMatched !== null" class="text-xs mt-1 font-medium" :class="autoMatched ? 'text-emerald-600' : 'text-amber-600'">
+              {{ autoMatched ? '已自動帶入資料庫資料' : '新球員（報名後將自動建檔至資料庫）' }}
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">性別 *</label>
+              <select 
+                v-model="form.gender" 
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base bg-white"
+              >
+                <option value="">請選擇</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">羽球等級 *</label>
+              <select 
+                v-model="form.level" 
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base bg-white"
+              >
+                <option value="">請選擇</option>
+                <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
+              </select>
+            </div>
+          </div>
+
+          <button 
+            @click="submitRegistration" 
+            :disabled="isFull"
+            :class="[
+              'w-full py-3 rounded-md font-bold text-white transition-colors shadow-sm text-base',
+              isFull ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+            ]">
+            {{ isFull ? '報名名額已滿' : '送出報名' }}
+          </button>
+        </div>
+
+        <!-- 名單列表 -->
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-slate-700 text-base flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                正取名單 ({{ regularList.length }})
+              </h3>
+              <button 
+                v-if="regularList.length > 0"
+                @click="copyRegularList" 
+                class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold px-2.5 py-1 rounded border border-indigo-200 transition-colors flex items-center gap-1"
+              >
+                📋 複製正取名單
+              </button>
+            </div>
+            <div class="bg-white border rounded-lg divide-y text-sm">
+              <div v-for="(item, index) in regularList" :key="item.id" class="p-3 flex justify-between items-center">
+                <div>
+                  <span class="font-medium mr-2 text-base">{{ index + 1 }}. {{ item.name }}</span>
+                  <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
+                  <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded ml-1">{{ item.level }}</span>
+                </div>
+                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium">取消</button>
+              </div>
+              <p v-if="regularList.length === 0" class="p-3 text-sm text-slate-400 text-center">尚無報名</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-bold text-slate-700 mb-2 text-base flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              候補名單 ({{ waitlist.length }})
+            </h3>
+            <div class="bg-white border rounded-lg divide-y text-sm">
+              <div v-for="(item, index) in waitlist" :key="item.id" class="p-3 flex justify-between items-center">
+                <div>
+                  <span class="font-medium mr-2 text-base">{{ index + 1 }}. {{ item.name }}</span>
+                  <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
+                  <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded ml-1">{{ item.level }}</span>
+                </div>
+                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium">取消</button>
+              </div>
+              <p v-if="waitlist.length === 0" class="p-3 text-sm text-slate-400 text-center">無候補人員</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 羽球程度分級參考文字表格 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm text-xs">
+          <div class="border-b pb-2 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              <span>🏸</span> 羽球程度分級參考表
+            </h3>
+            <span class="text-[10px] text-slate-400">台灣羽球推廣協會</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse border border-slate-200">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                  <th class="p-1.5 border-r border-slate-200 text-center w-12">級數</th>
+                  <th class="p-1.5 border-r border-slate-200 text-center w-20">階段</th>
+                  <th class="p-1.5">程度說明</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200 text-[11px]">
+                <!-- 新手階 (1-3級) -->
+                <tr class="bg-emerald-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-emerald-800">1</td>
+                  <td rowspan="3" class="p-1.5 font-bold text-center border-r border-slate-200 text-emerald-900 bg-emerald-100/80 align-middle">
+                    新手階<br><span class="text-[9px] font-normal text-emerald-700">球齡&lt;1年</span>
+                  </td>
+                  <td class="p-1.5 text-slate-700">剛接觸羽球學會比賽規則，並懂得比賽禮儀。</td>
+                </tr>
+                <tr class="bg-emerald-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-emerald-800">2</td>
+                  <td class="p-1.5 text-slate-700">在中場距離中高球來回10拍，發球有一半以上成功率。</td>
+                </tr>
+                <tr class="bg-emerald-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-emerald-800">3</td>
+                  <td class="p-1.5 text-slate-700">定點有一半可以打到2/3場後，發球有九成以上成功率。</td>
+                </tr>
+
+                <!-- 初階 (4-5級) -->
+                <tr class="bg-rose-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-rose-800">4</td>
+                  <td rowspan="2" class="p-1.5 font-bold text-center border-r border-slate-200 text-rose-900 bg-rose-100/80 align-middle">
+                    初階<br><span class="text-[9px] font-normal text-rose-700">球齡1-3年</span>
+                  </td>
+                  <td class="p-1.5 text-slate-700">清楚正確握拍法。長球男生定點可打到後場，女生可打到中後場；會基本平推；正反轉拍不順暢。</td>
+                </tr>
+                <tr class="bg-rose-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-rose-800">5</td>
+                  <td class="p-1.5 text-slate-700">清楚正確握拍法，略懂基本腳步，基本球路在非受迫時有一定表現。</td>
+                </tr>
+
+                <!-- 初中階 (6-7級) -->
+                <tr class="bg-purple-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-purple-800">6</td>
+                  <td rowspan="2" class="p-1.5 font-bold text-center border-r border-slate-200 text-purple-900 bg-purple-100/80 align-middle">
+                    初中階<br><span class="text-[9px] font-normal text-purple-700">球齡3-5年</span>
+                  </td>
+                  <td class="p-1.5 text-slate-700">略懂基本腳步，懂基本輪轉。尚不熟練，已開始會殺球及切球，非受迫時移動長球可至中後場。</td>
+                </tr>
+                <tr class="bg-purple-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-purple-800">7</td>
+                  <td class="p-1.5 text-slate-700">殺球、切球或長球不論定點或移動，成功率及穩定性有七成以上。已有基本防守能力，但無變化。</td>
+                </tr>
+
+                <!-- 中階 (8-9級) -->
+                <tr class="bg-amber-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-amber-800">8</td>
+                  <td rowspan="2" class="p-1.5 font-bold text-center border-r border-slate-200 text-amber-900 bg-amber-100/80 align-middle">
+                    中階<br><span class="text-[9px] font-normal text-amber-700">球齡5-10年</span>
+                  </td>
+                  <td class="p-1.5 text-slate-700">有基本戰略及打點，熟悉輪轉概念，切殺長吊均有七成以上準確性，防守有些變化。</td>
+                </tr>
+                <tr class="bg-amber-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-amber-800">9</td>
+                  <td class="p-1.5 text-slate-700">切殺長吊中有三種球路有九成以上準確性及質量，發力及力道已有強度，防守要有一定程度變化及穩定性。</td>
+                </tr>
+
+                <!-- 中進階 (10-12級) -->
+                <tr class="bg-sky-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-sky-800">10</td>
+                  <td rowspan="3" class="p-1.5 font-bold text-center border-r border-slate-200 text-sky-900 bg-sky-100/80 align-middle">
+                    中進階<br><span class="text-[9px] font-normal text-sky-700">球齡10年以上</span>
+                  </td>
+                  <td class="p-1.5 text-slate-700">輪轉概念熟練並能活化運用，策略性戰略及打點皆能有效得分。</td>
+                </tr>
+                <tr class="bg-sky-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-sky-800">11</td>
+                  <td class="p-1.5 text-slate-700">切殺長吊皆具準確性、發力及速度，策略兼具，輕鬆完成反拍各種球路，防守具有威脅性。</td>
+                </tr>
+                <tr class="bg-sky-50/60">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-sky-800">12</td>
+                  <td class="p-1.5 text-slate-700">有高速度移位及靈敏地走位與步法，殺切吊都具有高強度侵略性，常有一擊必殺的球路。</td>
+                </tr>
+
+                <!-- 高階 (13-15級) -->
+                <tr class="bg-slate-100">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-slate-800">13-15</td>
+                  <td class="p-1.5 font-bold text-center border-r border-slate-200 text-slate-900 bg-slate-200 align-middle">
+                    高階
+                  </td>
+                  <td class="p-1.5 text-slate-700">校隊前段、體保、社會甲組等。各種球路都穩定熟練，防守無死角，球速快質量高，戰略組織、爆發力都屬上等。</td>
+                </tr>
+
+                <!-- 職業級 (16-18級) -->
+                <tr class="bg-slate-800 text-white">
+                  <td class="p-1.5 font-bold text-center border-r border-slate-700">16-18</td>
+                  <td class="p-1.5 font-bold text-center border-r border-slate-700 bg-slate-900 align-middle">
+                    職業級
+                  </td>
+                  <td class="p-1.5 text-slate-200">甲組、國家代表選手。各種球路、戰術、步法已爐火純青，且發展出個人獨特球路風格。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 第二分頁：球員資料庫 -->
+      <section v-if="currentTab === 'database'" class="space-y-6">
+        <!-- EXCEL 資料備份與還原匯入 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-base border-b pb-2">📊 EXCEL 備份與匯入 (.xlsx)</h3>
+          <p class="text-xs text-slate-500">可將「球員資料庫」與「報名名單」匯出成 Excel 試算表，或選擇 Excel 檔上傳匯入。</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button @click="exportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
+              📥 下載 Excel 備份
+            </button>
+            <label class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm text-center cursor-pointer transition-colors block">
+              📤 上傳 Excel 匯入
+              <input type="file" ref="fileInput" accept=".xlsx, .xls" @change="importExcel" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <!-- 批量複製貼上匯入區塊 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-base border-b pb-2">📋 批量複製貼上匯入</h3>
+          <p class="text-xs text-slate-500">
+            可直接貼上 Line 帶序號清單。若僅有名字未填性別/級數，系統會直接標示為「無資料」。
+          </p>
+          <textarea 
+            v-model="batchText" 
+            rows="4" 
+            placeholder="例如：&#10;1.姵彤&#10;5.子瑜 女 4&#10;7.清龍 3" 
+            class="w-full px-3 py-2 border rounded-md text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          ></textarea>
+          <button @click="importBatchData" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
+            解析並批量匯入雲端
+          </button>
+        </div>
+
+        <!-- 單筆新增區塊 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-4 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-base border-b pb-2">➕ 單筆新增球員</h3>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">姓名 *</label>
+            <input v-model.trim="newPlayer.name" type="text" placeholder="請填寫姓名" class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">性別</label>
+              <select v-model="newPlayer.gender" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                <option value="無資料">無資料</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">羽球等級</label>
+              <select v-model="newPlayer.level" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+                <option value="無資料">無資料</option>
+                <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
+              </select>
+            </div>
+          </div>
+
+          <button @click="addSinglePlayer" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-md text-sm transition-colors">
+            新增至雲端資料庫
+          </button>
+        </div>
+
+        <!-- 球員資料庫表格 -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-3">
+          <div class="flex justify-between items-center border-b pb-2">
+            <div>
+              <h3 class="font-bold text-slate-700 text-base">建檔球員清單 ({{ playerDb.length }})</h3>
+              <p class="text-xs text-emerald-600 font-medium">⚡ 更改選單或姓名後系統會自動即時存檔</p>
+            </div>
+            <div class="text-right">
+              <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium block">
+                清空資料庫 <span class="text-[10px] text-slate-400">(密碼: 1234)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b">
+                  <th class="p-2 min-w-[80px]">姓名</th>
+                  <th class="p-2 min-w-[80px]">性別</th>
+                  <th class="p-2 min-w-[90px]">等級</th>
+                  <th class="p-2 text-center min-w-[50px]">次數</th>
+                  <th class="p-2 text-right min-w-[50px]">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="player in playerDb" :key="player.id" class="border-b hover:bg-slate-50 transition-colors">
+                  <td class="p-1.5">
+                    <input 
+                      v-model.trim="player.name" 
+                      @change="autoSavePlayer(player)"
+                      type="text" 
+                      class="w-full px-1.5 py-1 border rounded text-xs font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                    >
+                  </td>
+                  <td class="p-1.5">
+                    <select 
+                      v-model="player.gender" 
+                      @change="autoSavePlayer(player)"
+                      class="w-full px-1 py-1 border rounded text-xs bg-white focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="無資料">無資料</option>
+                      <option value="男">男</option>
+                      <option value="女">女</option>
+                    </select>
+                  </td>
+                  <td class="p-1.5">
+                    <select 
+                      v-model="player.level" 
+                      @change="autoSavePlayer(player)"
+                      class="w-full px-1 py-1 border rounded text-xs bg-white text-indigo-600 font-medium focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="無資料">無資料</option>
+                      <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
+                    </select>
+                  </td>
+                  <td class="p-1.5 text-center font-bold text-amber-600 text-xs">
+                    {{ player.count || 0 }}
+                  </td>
+                  <td class="p-1.5 text-right whitespace-nowrap">
+                    <button @click="removeFromDb(player.id)" class="px-2 py-1 text-rose-500 hover:text-rose-700 text-xs font-medium">
+                      刪除
+                    </button>
+                  </td>
+                </tr>
+
+                <tr v-if="playerDb.length === 0">
+                  <td colspan="5" class="p-4 text-center text-xs text-slate-400">雲端資料庫目前無球員資料</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 第三分頁：團主設定 -->
+      <section v-if="currentTab === 'admin'" class="space-y-6">
+        <div class="bg-white border border-slate-200 rounded-lg p-4 space-y-4 shadow-sm">
+          <h3 class="font-bold text-slate-700 text-base border-b pb-2">活動開團設定</h3>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">羽球日期 *</label>
+              <input v-model="settings.date" type="date" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">開始時間</label>
+                <input v-model="settings.startTime" type="time" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">結束時間</label>
+                <input v-model="settings.endTime" type="time" class="w-full px-3 py-2 border rounded-md text-sm bg-white">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">羽球地點</label>
+            <input 
+              v-model="settings.location" 
+              type="text" 
+              placeholder="選擇或輸入地點" 
+              class="w-full px-3 py-2 border rounded-md text-sm"
+            >
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">幾面場地</label>
+              <input v-model.number="settings.courts" type="number" min="1" class="w-full px-3 py-2 border rounded-md text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">正取人數</label>
+              <input v-model.number="settings.maxRegular" type="number" min="1" class="w-full px-3 py-2 border rounded-md text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">候補人數</label>
+              <input v-model.number="settings.maxWaitlist" type="number" min="0" class="w-full px-3 py-2 border rounded-md text-sm">
+            </div>
+          </div>
+
+          <!-- 開新團按鈕 -->
+          <button @click="createNewSession" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-md text-sm transition-colors shadow">
+            ✨ 儲存設定並開啟新團
+          </button>
+
+          <div class="pt-2 border-t">
+            <button @click="clearAllRegistrations" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium py-2 rounded-md text-sm border border-rose-200">
+              僅清空本次報名資料
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Firebase 模組載入與系統邏輯 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 最新 Firebase 專案設定資訊
+    const firebaseConfig = {
+      apiKey: "AIzaSyAtKQUjbKyfYdJEFlbsJmjErGbU4QBnlbg",
+      authDomain: "badminton-sign-up-692fb.firebaseapp.com",
+      projectId: "badminton-sign-up-692fb",
+      storageBucket: "badminton-sign-up-692fb.firebasestorage.app",
+      messagingSenderId: "234481757954",
+      appId: "1:234481757954:web:a32fca34ae074ed8f91c1b",
+      measurementId: "G-4LP1CGPGFW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    
+    // 開啟本地快取持久化
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const currentTab = ref('home');
+        const isOnline = ref(false);
+        const levelOptions = Array.from({ length: 15 }, (_, i) => `${i + 1}級`);
+
+        const settings = ref({
+          date: new Date().toISOString().split('T')[0],
+          startTime: '14:00',
+          endTime: '16:00',
+          location: '新北市羽球館',
+          courts: 2,
+          maxRegular: 12,
+          maxWaitlist: 4
+        });
+
+        const form = ref({ name: '', gender: '', level: '' });
+        const autoMatched = ref(null);
+
+        const playerDb = ref([]);
+        const newPlayer = ref({ name: '', gender: '無資料', level: '無資料' });
+        const batchText = ref('');
+        const fileInput = ref(null);
+
+        const registrations = ref([]);
+
+        onMounted(() => {
+          onSnapshot(doc(db, 'app_config', 'settings'), (docSnap) => {
+            if (docSnap.exists()) {
+              settings.value = docSnap.data();
+            }
+            isOnline.value = true;
+          });
+
+          onSnapshot(collection(db, 'player_db'), (snapshot) => {
+            const players = [];
+            snapshot.forEach((doc) => {
+              players.push({ id: doc.id, ...doc.data() });
+            });
+            playerDb.value = players;
+          });
+
+          onSnapshot(collection(db, 'registrations'), (snapshot) => {
+            const regs = [];
+            snapshot.forEach((doc) => {
+              regs.push({ id: doc.id, ...doc.data() });
+            });
+            regs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            registrations.value = regs;
+          });
+        });
+
+        const formattedActivityTime = computed(() => {
+          if (!settings.value.date) return '未定';
+          return `${settings.value.date} ${settings.value.startTime} - ${settings.value.endTime}`;
+        });
+
+        const onNameInput = () => {
+          if (!form.value.name) {
+            autoMatched.value = null;
+            return;
+          }
+          const found = playerDb.value.find(p => p.name === form.value.name);
+          if (found) {
+            form.value.gender = (found.gender && found.gender !== '無資料') ? found.gender : '';
+            form.value.level = (found.level && found.level !== '無資料') ? found.level : '';
+            autoMatched.value = true;
+          } else {
+            autoMatched.value = false;
+          }
+        };
+
+        const regularList = computed(() => registrations.value.slice(0, settings.value.maxRegular));
+        const waitlist = computed(() => registrations.value.slice(settings.value.maxRegular, settings.value.maxRegular + settings.value.maxWaitlist));
+        
+        const regularCount = computed(() => regularList.value.length);
+        const waitlistCount = computed(() => waitlist.value.length);
+        const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
+
+        // 複製正取名單至剪貼簿（格式：4.米血 男 5級）
+        const copyRegularList = async () => {
+          if (regularList.value.length === 0) {
+            alert('目前沒有正取名單可複製！');
+            return;
+          }
+
+          const textLines = regularList.value.map((item, idx) => {
+            const genderStr = (item.gender && item.gender !== '無資料') ? ` ${item.gender}` : '';
+            const levelStr = (item.level && item.level !== '無資料') ? ` ${item.level}` : '';
+            return `${idx + 1}.${item.name}${genderStr}${levelStr}`;
+          });
+
+          const copyText = textLines.join('\n');
+
+          try {
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(copyText);
+            } else {
+              const textArea = document.createElement("textarea");
+              textArea.value = copyText;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+            }
+            alert('📋 正取名單已成功複製到剪貼簿！');
+          } catch (err) {
+            console.error('複製失敗:', err);
+            alert('複製失敗，請手動複製！');
+          }
+        };
+
+        const submitRegistration = async () => {
+          if (!form.value.name || !form.value.gender || !form.value.level) {
+            alert('請完整選擇姓名、性別與羽球等級！');
+            return;
+          }
+
+          if (registrations.value.some(r => r.name === form.value.name)) {
+            alert('此姓名已經報名過囉！');
+            return;
+          }
+
+          const submittedName = form.value.name;
+          const submittedGender = form.value.gender;
+          const submittedLevel = form.value.level;
+
+          form.value = { name: '', gender: '', level: '' };
+          autoMatched.value = null;
+
+          const batch = writeBatch(db);
+
+          const regId = 'reg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+          const regRef = doc(db, 'registrations', regId);
+          batch.set(regRef, {
+            id: regId,
+            name: submittedName,
+            gender: submittedGender,
+            level: submittedLevel,
+            createdAt: Date.now()
+          });
+
+          const existing = playerDb.value.find(p => p.name === submittedName);
+          if (!existing) {
+            const pId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            const pRef = doc(db, 'player_db', pId);
+            batch.set(pRef, {
+              id: pId,
+              name: submittedName,
+              gender: submittedGender,
+              level: submittedLevel,
+              count: 1
+            });
+          } else {
+            const pRef = doc(db, 'player_db', existing.id);
+            batch.set(pRef, {
+              id: existing.id,
+              name: existing.name,
+              gender: (!existing.gender || existing.gender === '無資料') ? submittedGender : existing.gender,
+              level: (!existing.level || existing.level === '無資料') ? submittedLevel : existing.level,
+              count: (Number(existing.count) || 0) + 1
+            }, { merge: true });
+          }
+
+          try {
+            await batch.commit();
+            alert('報名成功，已自動將球員建檔/更新至資料庫！');
+          } catch (err) {
+            console.error("報名寫入失敗:", err);
+            alert('報名發生錯誤，請重新嘗試！');
+          }
+        };
+
+        const cancelRegistration = async (id) => {
+          await deleteDoc(doc(db, 'registrations', id));
+        };
+
+        const importBatchData = async () => {
+          const rawText = batchText.value.trim();
+          if (!rawText) return alert('請先貼入文字內容！');
+
+          batchText.value = '';
+
+          const lines = rawText.split('\n');
+          let successCount = 0;
+          const batch = writeBatch(db);
+
+          lines.forEach((line) => {
+            let trimmed = line.trim().replace(/^\d+[\.\s、]+/g, '').trim();
+            if (!trimmed) return;
+
+            const parts = trimmed.split(/[\s,,\t\/]+/).filter(Boolean);
+            if (parts.length >= 1) {
+              let name = '';
+              let gender = '無資料';
+              let level = '無資料';
+
+              parts.forEach((p, idx) => {
+                if (p === '男' || p === '女') gender = p;
+                else if (/^\d+級?$/.test(p)) level = p.includes('級') ? p : `${p}級`;
+                else if (idx === 0) name = p;
+              });
+
+              if (name) {
+                const existing = playerDb.value.find(p => p.name === name);
+                const uniqueId = existing 
+                  ? existing.id 
+                  : 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+                const docRef = doc(db, 'player_db', uniqueId);
+                
+                batch.set(docRef, {
+                  id: uniqueId,
+                  name,
+                  gender: gender !== '無資料' ? gender : (existing?.gender || '無資料'),
+                  level: level !== '無資料' ? level : (existing?.level || '無資料'),
+                  count: existing?.count || 0
+                }, { merge: true });
+
+                successCount++;
+              }
+            }
+          });
+
+          if (successCount > 0) {
+            await batch.commit();
+            alert(`成功匯入 ${successCount} 筆資料至雲端！`);
+          } else {
+            alert('未成功解析到任何有效名單！');
+          }
+        };
+
+        const addSinglePlayer = async () => {
+          if (!newPlayer.value.name) return alert('請填寫姓名！');
+
+          const submitted = { ...newPlayer.value };
+          newPlayer.value = { name: '', gender: '無資料', level: '無資料' };
+
+          const existing = playerDb.value.find(p => p.name === submitted.name);
+          const uniqueId = existing ? existing.id : 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+          const docRef = doc(db, 'player_db', uniqueId);
+
+          await setDoc(docRef, {
+            id: uniqueId,
+            name: submitted.name,
+            gender: submitted.gender,
+            level: submitted.level,
+            count: existing?.count || 0
+          }, { merge: true });
+
+          alert('新增/更新成功！');
+        };
+
+        const autoSavePlayer = async (player) => {
+          if (!player.name) return;
+          await setDoc(doc(db, 'player_db', player.id), {
+            id: player.id,
+            name: player.name,
+            gender: player.gender,
+            level: player.level,
+            count: Number(player.count) || 0
+          }, { merge: true });
+        };
+
+        const removeFromDb = async (id) => {
+          if (confirm('確定要刪除這位球員嗎？')) {
+            await deleteDoc(doc(db, 'player_db', id));
+          }
+        };
+
+        const clearDatabase = async () => {
+          const pwd = prompt('為防止誤刪資料，請輸入清空密碼（預設密碼：1234）：');
+          if (pwd === '1234') {
+            const batch = writeBatch(db);
+            playerDb.value.forEach(p => batch.delete(doc(db, 'player_db', p.id)));
+            await batch.commit();
+            alert('已成功清空球員資料庫！');
+          } else if (pwd !== null) {
+            alert('密碼錯誤！無法清空資料庫。');
+          }
+        };
+
+        const exportExcel = () => {
+          if (typeof XLSX === 'undefined') {
+            alert('Excel 模組尚未載入完成，請稍微再試一次！');
+            return;
+          }
+
+          const playerRows = playerDb.value.map(p => ({
+            '姓名': p.name || '',
+            '性別': p.gender || '無資料',
+            '羽球等級': p.level || '無資料',
+            '報名次數': Number(p.count) || 0
+          }));
+
+          const regRows = registrations.value.map((r, index) => ({
+            '序號': index + 1,
+            '姓名': r.name || '',
+            '性別': r.gender || '無資料',
+            '羽球等級': r.level || '無資料',
+            '報名類別': index < settings.value.maxRegular ? '正取' : '候補'
+          }));
+
+          const wb = XLSX.utils.book_new();
+          const wsPlayers = XLSX.utils.json_to_sheet(playerRows.length > 0 ? playerRows : [{'姓名': '', '性別': '', '羽球等級': '', '報名次數': 0}]);
+          const wsRegs = XLSX.utils.json_to_sheet(regRows.length > 0 ? regRows : [{'序號': '', '姓名': '', '性別': '', '羽球等級': '', '報名類別': ''}]);
+
+          XLSX.utils.book_append_sheet(wb, wsPlayers, "球員資料庫");
+          XLSX.utils.book_append_sheet(wb, wsRegs, "報名名單");
+
+          const fileName = `羽球系統資料備份_${new Date().toISOString().split('T')[0]}.xlsx`;
+          XLSX.writeFile(wb, fileName);
+        };
+
+        const importExcel = async (event) => {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+
+          if (typeof XLSX === 'undefined') {
+            alert('Excel 解析庫載入失敗，請檢查網路連線！');
+            return;
+          }
+
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+            const batch = writeBatch(db);
+            let importedPlayerCount = 0;
+
+            const playerSheetName = workbook.SheetNames.find(name => name.includes('球員') || name.includes('資料庫')) || workbook.SheetNames[0];
+            if (playerSheetName) {
+              const playerSheet = workbook.Sheets[playerSheetName];
+              const rawPlayers = XLSX.utils.sheet_to_json(playerSheet);
+
+              rawPlayers.forEach(row => {
+                const name = row['姓名'] || row['name'] || row['Name'];
+                if (name) {
+                  const gender = row['性別'] || row['gender'] || '無資料';
+                  const level = row['羽球等級'] || row['等級'] || row['level'] || '無資料';
+                  const count = Number(row['報名次數'] || row['count'] || 0);
+
+                  const existing = playerDb.value.find(p => p.name === name);
+                  const uniqueId = existing ? existing.id : ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+                  const docRef = doc(db, 'player_db', uniqueId);
+
+                  batch.set(docRef, {
+                    id: uniqueId,
+                    name: String(name).trim(),
+                    gender: String(gender).trim(),
+                    level: String(level).trim(),
+                    count: count
+                  }, { merge: true });
+
+                  importedPlayerCount++;
+                }
+              });
+            }
+
+            if (importedPlayerCount > 0) {
+              await batch.commit();
+              alert(`成功從 Excel 匯入 ${importedPlayerCount} 筆資料！`);
+            } else {
+              alert('未在 Excel 檔案中找到可對應的欄位與資料！');
+            }
+          } catch (err) {
+            console.error("Excel 匯入失敗:", err);
+            alert('匯入失敗，請確認檔案格式是否正確。');
+          } finally {
+            if (fileInput.value) fileInput.value.value = '';
+          }
+        };
+
+        // 開啟新團：儲存設定並一併清空主頁報名資料
+        const createNewSession = async () => {
+          if (!confirm('確定要開啟新團嗎？這將會儲存新設定，並【清空本次主頁的所有報名資料】！')) {
+            return;
+          }
+
+          try {
+            const batch = writeBatch(db);
+
+            // 1. 更新團主活動設定
+            const configRef = doc(db, 'app_config', 'settings');
+            batch.set(configRef, settings.value);
+
+            // 2. 一併清空所有主頁報名資料
+            registrations.value.forEach(r => {
+              const regRef = doc(db, 'registrations', r.id);
+              batch.delete(regRef);
+            });
+
+            // 執行原子寫入
+            await batch.commit();
+
+            alert('✨ 新團已成功開啟！活動設定已更新，主頁報名名單已清空。');
+          } catch (err) {
+            console.error("開啟新團失敗:", err);
+            alert('開啟新團時發生錯誤，請重試！');
+          }
+        };
+
+        const clearAllRegistrations = async () => {
+          if (confirm('確定要清空「本次」的所有報名資料嗎？（不會影響球員資料庫）')) {
+            const batch = writeBatch(db);
+            registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
+            await batch.commit();
+            alert('已成功清空本次報名名單！');
+          }
+        };
+
+        return {
+          currentTab,
+          isOnline,
+          levelOptions,
+          settings,
+          form,
+          autoMatched,
+          playerDb,
+          newPlayer,
+          batchText,
+          fileInput,
+          registrations,
+          formattedActivityTime,
+          regularList,
+          waitlist,
+          regularCount,
+          waitlistCount,
+          isFull,
+          onNameInput,
+          copyRegularList,
+          submitRegistration,
+          cancelRegistration,
+          importBatchData,
+          addSinglePlayer,
+          autoSavePlayer,
+          removeFromDb,
+          clearDatabase,
+          exportExcel,
+          importExcel,
+          createNewSession,
+          clearAllRegistrations
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>00 text-white p-4 shadow flex justify-between items-center">
       <h1 class="text-xl font-bold text-center flex-1">羽球報名系統</h1>
       <span class="text-xs bg-indigo-800 px-2 py-1 rounded" :class="isOnline ? 'text-emerald-300' : 'text-rose-300'">
         {{ isOnline ? '🟢 雲端同步中' : '🔴 連線中...' }}
