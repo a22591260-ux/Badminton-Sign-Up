@@ -47,13 +47,14 @@
         <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 space-y-3 shadow-sm">
           <div class="flex justify-between items-center border-b border-indigo-200 pb-2">
             <h2 class="font-extrabold text-indigo-900 text-xl">本次活動資訊</h2>
-            <span class="text-sm bg-indigo-600 text-white px-3 py-1 rounded-full font-bold">
-              {{ settings.courts }} 面場地
+            <span class="text-xs bg-indigo-600 text-white px-2.5 py-1 rounded-full font-bold">
+              {{ settings.courts || 1 }} 面場地
             </span>
           </div>
           <div class="text-base text-indigo-900 space-y-2 font-medium">
             <p><strong class="text-indigo-950">時間：</strong>{{ formattedActivityTime }}</p>
             <p><strong class="text-indigo-950">地點：</strong>{{ settings.location || '未定' }}</p>
+            <p v-if="formattedCourtList"><strong class="text-indigo-950">場地號碼：</strong>{{ formattedCourtList }}</p>
           </div>
           <div class="pt-3 border-t border-indigo-200 flex justify-around text-center">
             <div>
@@ -396,7 +397,7 @@
             <input 
               v-model="settings.location" 
               type="text" 
-              placeholder="選擇或輸入地點" 
+              placeholder="例如：新北市羽球館" 
               class="w-full px-3 py-2 border rounded-md text-sm"
             >
           </div>
@@ -404,7 +405,14 @@
           <div class="grid grid-cols-3 gap-2">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">幾面場地</label>
-              <input v-model.number="settings.courts" type="number" min="1" class="w-full px-3 py-2 border rounded-md text-sm">
+              <input 
+                v-model.number="settings.courts" 
+                @input="onCourtsChange" 
+                type="number" 
+                min="1" 
+                max="20" 
+                class="w-full px-3 py-2 border rounded-md text-sm"
+              >
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">正取人數</label>
@@ -416,10 +424,31 @@
             </div>
           </div>
 
-          <!-- 開新團按鈕 -->
-          <button @click="createNewSession" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-md text-sm transition-colors shadow">
-            ✨ 儲存設定並開啟新團
-          </button>
+          <!-- 動態球場編號設定區 -->
+          <div v-if="settings.courtNumbers && settings.courtNumbers.length > 0" class="bg-indigo-50/70 p-3 rounded-md border border-indigo-100 space-y-2">
+            <label class="block text-xs font-bold text-indigo-900">🏸 各場地編號名稱 (例如：10號場、A場)：</label>
+            <div class="grid grid-cols-2 gap-2">
+              <div v-for="(courtName, idx) in settings.courtNumbers" :key="idx" class="flex items-center gap-1">
+                <span class="text-xs text-indigo-700 font-bold whitespace-nowrap">第 {{ idx + 1 }} 面:</span>
+                <input 
+                  v-model="settings.courtNumbers[idx]" 
+                  type="text" 
+                  :placeholder="`${idx + 1}號場`"
+                  class="w-full px-2 py-1 border rounded text-xs bg-white focus:ring-1 focus:ring-indigo-500"
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按鈕區 -->
+          <div class="space-y-2 pt-2">
+            <button @click="updateSettingsOnly" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-md text-sm transition-colors shadow">
+              💾 僅儲存變更 (不清空報名資料)
+            </button>
+            <button @click="createNewSession" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-md text-sm transition-colors shadow">
+              ✨ 儲存設定並開啟新團 (清空報名)
+            </button>
+          </div>
 
           <div class="pt-2 border-t">
             <button @click="clearAllRegistrations" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium py-2 rounded-md text-sm border border-rose-200">
@@ -460,7 +489,7 @@
       })
     });
 
-    const { createApp, ref, computed, onMounted } = Vue;
+    const { createApp, ref, computed, onMounted, watch } = Vue;
 
     createApp({
       setup() {
@@ -474,6 +503,7 @@
           endTime: '16:00',
           location: '新北市羽球館',
           courts: 2,
+          courtNumbers: ['1號場', '2號場'],
           maxRegular: 12,
           maxWaitlist: 4
         });
@@ -491,7 +521,11 @@
         onMounted(() => {
           onSnapshot(doc(db, 'app_config', 'settings'), (docSnap) => {
             if (docSnap.exists()) {
-              settings.value = docSnap.data();
+              const data = docSnap.data();
+              if (!data.courtNumbers || !Array.isArray(data.courtNumbers)) {
+                data.courtNumbers = Array.from({ length: data.courts || 1 }, (_, i) => `${i + 1}號場`);
+              }
+              settings.value = data;
             }
             isOnline.value = true;
           });
@@ -514,9 +548,30 @@
           });
         });
 
+        // 監聽幾面場地數量變化，動態增減 courtNumbers 陣列長度
+        const onCourtsChange = () => {
+          const count = Math.max(1, settings.value.courts || 1);
+          settings.value.courts = count;
+          if (!settings.value.courtNumbers) {
+            settings.value.courtNumbers = [];
+          }
+          while (settings.value.courtNumbers.length < count) {
+            settings.value.courtNumbers.push(`${settings.value.courtNumbers.length + 1}號場`);
+          }
+          if (settings.value.courtNumbers.length > count) {
+            settings.value.courtNumbers = settings.value.courtNumbers.slice(0, count);
+          }
+        };
+
         const formattedActivityTime = computed(() => {
           if (!settings.value.date) return '未定';
           return `${settings.value.date} ${settings.value.startTime} - ${settings.value.endTime}`;
+        });
+
+        const formattedCourtList = computed(() => {
+          if (!settings.value.courtNumbers || settings.value.courtNumbers.length === 0) return '';
+          const validList = settings.value.courtNumbers.map((c, i) => c.trim() || `${i + 1}號場`);
+          return validList.join('、');
         });
 
         const onNameInput = () => {
@@ -835,6 +890,17 @@
           }
         };
 
+        // 僅修改儲存設定（不清空主頁報名資料）
+        const updateSettingsOnly = async () => {
+          try {
+            await setDoc(doc(db, 'app_config', 'settings'), settings.value);
+            alert('💾 活動設定修改成功！【主頁報名名單已完整保留】');
+          } catch (err) {
+            console.error("修改設定失敗:", err);
+            alert('修改設定失敗，請重試！');
+          }
+        };
+
         // 開啟新團：儲存設定並一併清空主頁報名資料
         const createNewSession = async () => {
           if (!confirm('確定要開啟新團嗎？這將會儲存新設定，並【清空本次主頁的所有報名資料】！')) {
@@ -886,12 +952,14 @@
           fileInput,
           registrations,
           formattedActivityTime,
+          formattedCourtList,
           regularList,
           waitlist,
           regularCount,
           waitlistCount,
           isFull,
           onNameInput,
+          onCourtsChange,
           copyRegularList,
           submitRegistration,
           cancelRegistration,
@@ -902,6 +970,7 @@
           clearDatabase,
           exportExcel,
           importExcel,
+          updateSettingsOnly,
           createNewSession,
           clearAllRegistrations
         };
