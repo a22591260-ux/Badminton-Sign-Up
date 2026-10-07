@@ -111,6 +111,17 @@
             </div>
           </div>
 
+          <!-- 備註欄位 (非必填) -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">備註 <span class="text-slate-400 font-normal">(非必填)</span></label>
+            <input 
+              v-model.trim="form.note" 
+              type="text" 
+              placeholder="例如：晚到30分鐘、需借拍" 
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
+            >
+          </div>
+
           <button 
             @click="submitRegistration" 
             :disabled="isFull"
@@ -140,12 +151,13 @@
             </div>
             <div class="bg-white border rounded-lg divide-y text-sm">
               <div v-for="(item, index) in regularList" :key="item.id" class="p-3 flex justify-between items-center">
-                <div>
-                  <span class="font-medium mr-2 text-base">{{ index + 1 }}. {{ item.name }}</span>
-                  <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
-                  <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded ml-1">{{ item.level }}</span>
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="font-medium mr-1 text-base">{{ index + 1 }}. {{ item.name }}</span>
+                  <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{{ item.gender }}</span>
+                  <span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{{ item.level }}</span>
+                  <span v-if="item.note" class="text-xs bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded font-normal">💬 {{ item.note }}</span>
                 </div>
-                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium">取消</button>
+                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium whitespace-nowrap ml-2">取消</button>
               </div>
               <p v-if="regularList.length === 0" class="p-3 text-sm text-slate-400 text-center">尚無報名</p>
             </div>
@@ -158,12 +170,13 @@
             </h3>
             <div class="bg-white border rounded-lg divide-y text-sm">
               <div v-for="(item, index) in waitlist" :key="item.id" class="p-3 flex justify-between items-center">
-                <div>
-                  <span class="font-medium mr-2 text-base">{{ index + 1 }}. {{ item.name }}</span>
-                  <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{{ item.gender }}</span>
-                  <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded ml-1">{{ item.level }}</span>
+                <div class="flex flex-wrap items-center gap-1">
+                  <span class="font-medium mr-1 text-base">{{ index + 1 }}. {{ item.name }}</span>
+                  <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{{ item.gender }}</span>
+                  <span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{{ item.level }}</span>
+                  <span v-if="item.note" class="text-xs bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded font-normal">💬 {{ item.note }}</span>
                 </div>
-                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium">取消</button>
+                <button @click="cancelRegistration(item.id)" class="text-xs text-rose-500 hover:text-rose-700 font-medium whitespace-nowrap ml-2">取消</button>
               </div>
               <p v-if="waitlist.length === 0" class="p-3 text-sm text-slate-400 text-center">無候補人員</p>
             </div>
@@ -300,7 +313,7 @@
           <div class="flex justify-between items-center border-b pb-2">
             <div>
               <h3 class="font-bold text-slate-700 text-base">建檔球員清單 ({{ playerDb.length }})</h3>
-              <p class="text-xs text-emerald-600 font-medium">⚡ 更改選單或姓名後系統會自動即時存檔</p>
+              <p class="text-xs text-emerald-600 font-medium">⚡ 所有欄位皆可直接編輯修改，自動存檔</p>
             </div>
             <div class="text-right">
               <button v-if="playerDb.length > 0" @click="clearDatabase" class="text-xs text-rose-500 hover:text-rose-700 font-medium block">
@@ -313,16 +326,16 @@
             <table class="w-full text-left text-sm border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 border-b">
-                  <th class="p-2 min-w-[80px]">姓名</th>
-                  <th class="p-2 min-w-[80px]">性別</th>
-                  <th class="p-2 min-w-[90px]">等級</th>
-                  <th class="p-2 text-center min-w-[50px]">次數</th>
+                  <th class="p-2 min-w-[75px]">姓名</th>
+                  <th class="p-2 min-w-[65px]">性別</th>
+                  <th class="p-2 min-w-[80px]">等級</th>
+                  <th class="p-2 text-center min-w-[60px]">次數</th>
                   <th class="p-2 text-right min-w-[50px]">操作</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="player in playerDb" :key="player.id" class="border-b hover:bg-slate-50 transition-colors">
-                  <td class="p-1.5">
+                  <td class="p-1">
                     <input 
                       v-model.trim="player.name" 
                       @change="autoSavePlayer(player)"
@@ -330,7 +343,7 @@
                       class="w-full px-1.5 py-1 border rounded text-xs font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500"
                     >
                   </td>
-                  <td class="p-1.5">
+                  <td class="p-1">
                     <select 
                       v-model="player.gender" 
                       @change="autoSavePlayer(player)"
@@ -341,7 +354,7 @@
                       <option value="女">女</option>
                     </select>
                   </td>
-                  <td class="p-1.5">
+                  <td class="p-1">
                     <select 
                       v-model="player.level" 
                       @change="autoSavePlayer(player)"
@@ -351,10 +364,17 @@
                       <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
                     </select>
                   </td>
-                  <td class="p-1.5 text-center font-bold text-amber-600 text-xs">
-                    {{ player.count || 0 }}
+                  <!-- 次數可供直接修改 -->
+                  <td class="p-1 text-center">
+                    <input 
+                      v-model.number="player.count" 
+                      @change="autoSavePlayer(player)"
+                      type="number" 
+                      inputmode="numeric" 
+                      class="w-12 text-center px-1 py-1 border rounded text-xs font-bold text-amber-600 focus:ring-1 focus:ring-indigo-500 bg-amber-50/50"
+                    >
                   </td>
-                  <td class="p-1.5 text-right whitespace-nowrap">
+                  <td class="p-1 text-right whitespace-nowrap">
                     <button @click="removeFromDb(player.id)" class="px-2 py-1 text-rose-500 hover:text-rose-700 text-xs font-medium">
                       刪除
                     </button>
@@ -405,22 +425,23 @@
           <div class="grid grid-cols-3 gap-2">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">幾面場地</label>
+              <!-- 手機輸入友善，允許清空與自由輸入數字 -->
               <input 
                 v-model.number="settings.courts" 
                 @input="onCourtsChange" 
                 type="number" 
-                min="1" 
-                max="20" 
+                inputmode="numeric" 
+                placeholder="面數"
                 class="w-full px-3 py-2 border rounded-md text-sm"
               >
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">正取人數</label>
-              <input v-model.number="settings.maxRegular" type="number" min="1" class="w-full px-3 py-2 border rounded-md text-sm">
+              <input v-model.number="settings.maxRegular" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-sm">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">候補人數</label>
-              <input v-model.number="settings.maxWaitlist" type="number" min="0" class="w-full px-3 py-2 border rounded-md text-sm">
+              <input v-model.number="settings.maxWaitlist" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-sm">
             </div>
           </div>
 
@@ -446,13 +467,13 @@
               💾 僅儲存變更 (不清空報名資料)
             </button>
             <button @click="createNewSession" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-md text-sm transition-colors shadow">
-              ✨ 儲存設定並開啟新團 (清空報名)
+              ✨ 儲存設定並開啟新團 (僅正取結算次數)
             </button>
           </div>
 
           <div class="pt-2 border-t">
             <button @click="clearAllRegistrations" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium py-2 rounded-md text-sm border border-rose-200">
-              僅清空本次報名資料
+              僅清空本次報名資料 (不結算次數)
             </button>
           </div>
         </div>
@@ -489,7 +510,7 @@
       })
     });
 
-    const { createApp, ref, computed, onMounted, watch } = Vue;
+    const { createApp, ref, computed, onMounted } = Vue;
 
     createApp({
       setup() {
@@ -508,7 +529,7 @@
           maxWaitlist: 4
         });
 
-        const form = ref({ name: '', gender: '', level: '' });
+        const form = ref({ name: '', gender: '', level: '', note: '' });
         const autoMatched = ref(null);
 
         const playerDb = ref([]);
@@ -550,8 +571,11 @@
 
         // 監聽幾面場地數量變化，動態增減 courtNumbers 陣列長度
         const onCourtsChange = () => {
-          const count = Math.max(1, settings.value.courts || 1);
-          settings.value.courts = count;
+          let count = parseInt(settings.value.courts);
+          if (isNaN(count) || count < 0) {
+            settings.value.courtNumbers = [];
+            return;
+          }
           if (!settings.value.courtNumbers) {
             settings.value.courtNumbers = [];
           }
@@ -570,7 +594,7 @@
 
         const formattedCourtList = computed(() => {
           if (!settings.value.courtNumbers || settings.value.courtNumbers.length === 0) return '';
-          const validList = settings.value.courtNumbers.map((c, i) => c.trim() || `${i + 1}號場`);
+          const validList = settings.value.courtNumbers.map((c, i) => (c && c.trim()) ? c.trim() : `${i + 1}號場`);
           return validList.join('、');
         });
 
@@ -596,7 +620,7 @@
         const waitlistCount = computed(() => waitlist.value.length);
         const isFull = computed(() => registrations.value.length >= (settings.value.maxRegular + settings.value.maxWaitlist));
 
-        // 複製正取名單至剪貼簿（格式：4.米血 男 5級）
+        // 複製正取名單至剪貼簿（備註排除不複製）
         const copyRegularList = async () => {
           if (regularList.value.length === 0) {
             alert('目前沒有正取名單可複製！');
@@ -629,6 +653,7 @@
           }
         };
 
+        // 報名：僅進行預約報名與新球員資料庫建檔（次數先不加 1）
         const submitRegistration = async () => {
           if (!form.value.name || !form.value.gender || !form.value.level) {
             alert('請完整選擇姓名、性別與羽球等級！');
@@ -643,8 +668,9 @@
           const submittedName = form.value.name;
           const submittedGender = form.value.gender;
           const submittedLevel = form.value.level;
+          const submittedNote = form.value.note || '';
 
-          form.value = { name: '', gender: '', level: '' };
+          form.value = { name: '', gender: '', level: '', note: '' };
           autoMatched.value = null;
 
           const batch = writeBatch(db);
@@ -656,6 +682,7 @@
             name: submittedName,
             gender: submittedGender,
             level: submittedLevel,
+            note: submittedNote,
             createdAt: Date.now()
           });
 
@@ -668,7 +695,7 @@
               name: submittedName,
               gender: submittedGender,
               level: submittedLevel,
-              count: 1
+              count: 0 // 報名時先不增加次數，開啟新團結算時才+1
             });
           } else {
             const pRef = doc(db, 'player_db', existing.id);
@@ -677,13 +704,13 @@
               name: existing.name,
               gender: (!existing.gender || existing.gender === '無資料') ? submittedGender : existing.gender,
               level: (!existing.level || existing.level === '無資料') ? submittedLevel : existing.level,
-              count: (Number(existing.count) || 0) + 1
+              count: Number(existing.count) || 0
             }, { merge: true });
           }
 
           try {
             await batch.commit();
-            alert('報名成功，已自動將球員建檔/更新至資料庫！');
+            alert('報名成功！已登記於主頁名單。');
           } catch (err) {
             console.error("報名寫入失敗:", err);
             alert('報名發生錯誤，請重新嘗試！');
@@ -809,7 +836,7 @@
             '姓名': p.name || '',
             '性別': p.gender || '無資料',
             '羽球等級': p.level || '無資料',
-            '報名次數': Number(p.count) || 0
+            '參加次數': Number(p.count) || 0
           }));
 
           const regRows = registrations.value.map((r, index) => ({
@@ -817,12 +844,13 @@
             '姓名': r.name || '',
             '性別': r.gender || '無資料',
             '羽球等級': r.level || '無資料',
+            '備註': r.note || '',
             '報名類別': index < settings.value.maxRegular ? '正取' : '候補'
           }));
 
           const wb = XLSX.utils.book_new();
-          const wsPlayers = XLSX.utils.json_to_sheet(playerRows.length > 0 ? playerRows : [{'姓名': '', '性別': '', '羽球等級': '', '報名次數': 0}]);
-          const wsRegs = XLSX.utils.json_to_sheet(regRows.length > 0 ? regRows : [{'序號': '', '姓名': '', '性別': '', '羽球等級': '', '報名類別': ''}]);
+          const wsPlayers = XLSX.utils.json_to_sheet(playerRows.length > 0 ? playerRows : [{'姓名': '', '性別': '', '羽球等級': '', '參加次數': 0}]);
+          const wsRegs = XLSX.utils.json_to_sheet(regRows.length > 0 ? regRows : [{'序號': '', '姓名': '', '性別': '', '羽球等級': '', '備註': '', '報名類別': ''}]);
 
           XLSX.utils.book_append_sheet(wb, wsPlayers, "球員資料庫");
           XLSX.utils.book_append_sheet(wb, wsRegs, "報名名單");
@@ -857,7 +885,7 @@
                 if (name) {
                   const gender = row['性別'] || row['gender'] || '無資料';
                   const level = row['羽球等級'] || row['等級'] || row['level'] || '無資料';
-                  const count = Number(row['報名次數'] || row['count'] || 0);
+                  const count = Number(row['參加次數'] || row['報名次數'] || row['count'] || 0);
 
                   const existing = playerDb.value.find(p => p.name === name);
                   const uniqueId = existing ? existing.id : ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
@@ -890,7 +918,7 @@
           }
         };
 
-        // 僅修改儲存設定（不清空主頁報名資料）
+        // 僅修改儲存設定（不清空主頁報名資料，也不算次數）
         const updateSettingsOnly = async () => {
           try {
             await setDoc(doc(db, 'app_config', 'settings'), settings.value);
@@ -901,20 +929,31 @@
           }
         };
 
-        // 開啟新團：儲存設定並一併清空主頁報名資料
+        // 開開啟新團：【僅限正取人員】自動次數 +1，儲存新設定，並清空報名名單
         const createNewSession = async () => {
-          if (!confirm('確定要開啟新團嗎？這將會儲存新設定，並【清空本次主頁的所有報名資料】！')) {
+          if (!confirm('確定要開啟新團嗎？\n系統將會【僅為正取人員自動累加參加次數 +1 (候補不計入)】，儲存新設定並【清空報名名單】！')) {
             return;
           }
 
           try {
             const batch = writeBatch(db);
 
-            // 1. 更新團主活動設定
+            // 1. 僅結算「正取人員」：資料庫中的次數 +1
+            regularList.value.forEach(reg => {
+              const existingPlayer = playerDb.value.find(p => p.name === reg.name);
+              if (existingPlayer) {
+                const pRef = doc(db, 'player_db', existingPlayer.id);
+                batch.set(pRef, {
+                  count: (Number(existingPlayer.count) || 0) + 1
+                }, { merge: true });
+              }
+            });
+
+            // 2. 更新團主活動設定
             const configRef = doc(db, 'app_config', 'settings');
             batch.set(configRef, settings.value);
 
-            // 2. 一併清空所有主頁報名資料
+            // 3. 清空所有主頁報名資料（包含正取與候補）
             registrations.value.forEach(r => {
               const regRef = doc(db, 'registrations', r.id);
               batch.delete(regRef);
@@ -923,7 +962,7 @@
             // 執行原子寫入
             await batch.commit();
 
-            alert('✨ 新團已成功開啟！活動設定已更新，主頁報名名單已清空。');
+            alert('✨ 新團已成功開啟！\n已為本次正取球員次數 +1，活動設定已更新，主頁報名名單已清空。');
           } catch (err) {
             console.error("開啟新團失敗:", err);
             alert('開啟新團時發生錯誤，請重試！');
@@ -931,7 +970,7 @@
         };
 
         const clearAllRegistrations = async () => {
-          if (confirm('確定要清空「本次」的所有報名資料嗎？（不會影響球員資料庫）')) {
+          if (confirm('確定要清空「本次」的所有報名資料嗎？（注意：此按鈕【不會】將球員的參加次數 +1）')) {
             const batch = writeBatch(db);
             registrations.value.forEach(r => batch.delete(doc(db, 'registrations', r.id)));
             await batch.commit();
